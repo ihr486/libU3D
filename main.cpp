@@ -36,6 +36,41 @@ public:
     }
 };
 
+class Block
+{
+    uint32_t data_size, metadata_size;
+public:
+    Block(BinaryReader &reader) {
+        data_size = reader.read<uint32_t>();
+        metadata_size = reader.read<uint32_t>();
+    }
+};
+
+class FileHeaderBlock : public Block
+{
+    uint16_t major_version, minor_version;
+    uint32_t profile_identifier;
+    uint32_t declaration_size;
+    uint64_t file_size;
+    uint32_t character_encoding;
+    double units_scaling_factor;
+public:
+    FileHeaderBlock(BinaryReader &reader) {
+        major_version = reader.read<uint16_t>();
+        minor_version = reader.read<uint16_t>();
+        profile_identifier = reader.read<uint32_t>();
+        declaration_size = reader.read<uint32_t>();
+        file_size = reader.read<uint64_t>();
+        character_encoding = reader.read<uint32_t>();
+        if(profile_identifier & 0x8) {
+            units_scaling_factor = reader.read<double>();
+        } else {
+            units_scaling_factor = 1;
+        };
+    }
+};
+
+
 class U3D
 {
     BinaryReader reader;
@@ -43,6 +78,13 @@ public:
     U3D(const std::string& filename)
         : reader(filename)
     {
+        while(true) {
+            uint32_t type = reader.read<uint32_t>();
+
+            switch(type) {
+            case 0x00443355:
+            }
+        }
     }
 };
 
