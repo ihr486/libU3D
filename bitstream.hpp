@@ -45,6 +45,10 @@ public:
         }
         byte_position = 0;
     }
+    operator bool() const
+    {
+        return !ifs.eof();
+    }
     template<typename T> T read()
     {
         T ret;

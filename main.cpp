@@ -13,14 +13,17 @@
 class Block
 {
     BitStreamReader& reader;
-    uint32_t data_size, metadata_size;
+    uint32_t type, data_size, metadata_size;
     size_t position;
 private:
     template<typename T, typename U> static T alignto(T a, U n) { return ((a + n - 1) / n) * n; }
 public:
     Block(BitStreamReader& reader) : reader(reader) {
-        reader >> data_size >> metadata_size;
+        reader >> type >> data_size >> metadata_size;
         position = reader.get_position();
+    }
+    uint32_t get_type() const {
+        return type;
     }
     void jump_to_metadata() {
         reader.skip(alignto(data_size, 4) + position - reader.get_position());
@@ -52,7 +55,6 @@ class FileHeader
     double units_scaling_factor;
 public:
     void read_header_block(BitStreamReader& reader) {
-        Block block(reader);
         reader >> major_version >> minor_version >> profile_identifier >> declaration_size >> file_size >> character_encoding;
         units_scaling_factor = (profile_identifier & 0x8) ? reader.read<double>() : 1;
         std::fprintf(stderr, "FileHeaderBlock created.\n");
@@ -65,7 +67,6 @@ class PriorityManager
 public:
     PriorityManager() : priority(0) {}
     uint32_t read_update_block(BitStreamReader& reader) {
-        Block block(reader);
         reader >> priority;
         std::fprintf(stderr, "New priority : %u.\n", priority);
         return priority;
@@ -79,18 +80,17 @@ protected:
         std::string name;
         Matrix4f transform;
     };
-    std::string name;
     std::vector<Parent> parents;
 public:
     void read(BitStreamReader& reader)
     {
-        reader >> name;
         uint32_t parent_count = reader.read<uint32_t>();
         parents.resize(parent_count);
         for(unsigned int i = 0; i < parent_count; i++) {
             reader >> parents[i].name >> parents[i].transform;
         }
     }
+    virtual ~Node() {}
 };
 
 class Group : public Node, public Modifier
@@ -98,9 +98,7 @@ class Group : public Node, public Modifier
 public:
     Group(BitStreamReader& reader)
     {
-        Block block(reader);
         Node::read(reader);
-        std::fprintf(stderr, "Group node \"%s\"\n", name.c_str());
     }
 };
 
@@ -123,7 +121,6 @@ class View : public Node, public Modifier
 public:
     View(BitStreamReader& reader)
     {
-        Block block(reader);
         Node::read(reader);
         reader >> resource_name >> attributes >> near_clipping >> far_clipping;
         switch(attributes & 0x6) {
@@ -152,7 +149,6 @@ public:
             reader >> backdrops[i].reg_x >> backdrops[i].reg_y >> backdrops[i].scale_x >> backdrops[i].scale_y;
         }
 
-        std::fprintf(stderr, "\tView \"%s\" -> \"%s\"\n", name.c_str(), resource_name.c_str());
     }
 };
 
@@ -163,11 +159,8 @@ class Model : public Node, public Modifier
 public:
     Model(BitStreamReader& reader)
     {
-        Block block(reader);
         Node::read(reader);
         reader >> resource_name >> visibility;
-
-        std::fprintf(stderr, "\tModel \"%s\" -> \"%s\"\n", name.c_str(), resource_name.c_str());
     }
 };
 
@@ -177,24 +170,19 @@ class Light : public Node, public Modifier
 public:
     Light(BitStreamReader& reader)
     {
-        Block block(reader);
         Node::read(reader);
         reader >> resource_name;
-
-        std::fprintf(stderr, "\tLight \"%s\" -> \"%s\"\n", name.c_str(), resource_name.c_str());
     }
 };
 
 class Shading : public Modifier
 {
-    std::string name;
     uint32_t chain_index, attributes;
     std::vector<std::vector<std::string>> shader_names;
 public:
     Shading(BitStreamReader& reader)
     {
-        Block block(reader);
-        reader >> name >> chain_index >> attributes;
+        reader >> chain_index >> attributes;
         uint32_t list_count = reader.read<uint32_t>();
         shader_names.resize(list_count);
         for(unsigned int i = 0; i < list_count; i++) {
@@ -204,14 +192,11 @@ public:
                 reader >> shader_names[i][j];
             }
         }
-
-        std::fprintf(stderr, "\tShading \"%s\"\n", name.c_str());
     }
 };
 
 class CLOD_Mesh : public Modifier
 {
-    std::string name;
     uint32_t chain_index;
     struct ShadingDesc {
         uint32_t attributes;
@@ -243,8 +228,7 @@ class CLOD_Mesh : public Modifier
 public:
     CLOD_Mesh(BitStreamReader& reader)
     {
-        Block block(reader);
-        reader >> name >> chain_index;
+        reader >> chain_index;
         reader >> maxmesh.attributes >> maxmesh.face_count >> maxmesh.position_count >> maxmesh.normal_count;
         reader >> maxmesh.diffuse_count >> maxmesh.specular_count >> maxmesh.texcoord_count;
         uint32_t shading_count = reader.read<uint32_t>();
@@ -278,28 +262,23 @@ public:
                 reader.read<float>();   //Skip past the rotation constraints
             }
         }
-        std::fprintf(stderr, "\tCLOD Mesh \"%s\"\n", name.c_str());
     }
 };
 
 class CLOD_Modifier : public Modifier
 {
-    std::string name;
     uint32_t chain_index, attributes;
     float LOD_bias, level;
 public:
     CLOD_Modifier(BitStreamReader& reader)
     {
-        Block block(reader);
-        reader >> name >> chain_index >> attributes >> LOD_bias >> level;
-        std::fprintf(stderr, "\tCLOD Modifier \"%s\"\n", name.c_str());
+        reader >> chain_index >> attributes >> LOD_bias >> level;
     }
 };
 
 class ModifierChain
 {
-    std::string name;
-    uint32_t type, attribute;
+    uint32_t attribute;
     Vector3f bsphere;
     float bsphere_radius;
     Vector3f aabb_min, aabb_max;
@@ -307,8 +286,7 @@ class ModifierChain
     std::list<Modifier *> modifiers;
 public:
     ModifierChain(BitStreamReader& reader) {
-        Block block(reader);
-        reader >> name >> type >> attribute;
+        reader >> attribute;
         if(attribute & 0x00000001) {
             reader >> bsphere >> bsphere_radius;
         } else if(attribute & 0x00000002) {
@@ -317,54 +295,58 @@ public:
         reader.align_to_word();
         modifier_count = reader.read<uint32_t>();
 
-        std::fprintf(stderr, "Modifier Chain: %s [%u blocks]\n", name.c_str(), modifier_count);
+        //std::fprintf(stderr, "Modifier Chain: %s [%u blocks]\n", name.c_str(), modifier_count);
 
         for(unsigned int i = 0; i < modifier_count; i++) {
-            uint32_t type = reader.read<uint32_t>();
-            switch(type) {
+            Block block(reader);
+            std::string name = reader.read_str();
+            switch(block.get_type()) {
             case 0xFFFFFF21:    //Group Node Block
                 modifiers.push_back(new Group(reader));
+                std::fprintf(stderr, "Group node \"%s\"\n", name.c_str());
                 break;
             case 0xFFFFFF22:    //Model Node Block
                 modifiers.push_back(new Model(reader));
+                std::fprintf(stderr, "\tModel \"%s\"\n", name.c_str());
                 break;
             case 0xFFFFFF23:    //Light Node Block
                 modifiers.push_back(new Light(reader));
+                std::fprintf(stderr, "\tLight \"%s\"\n", name.c_str());
                 break;
             case 0xFFFFFF24:    //View Node Block
                 modifiers.push_back(new View(reader));
+                std::fprintf(stderr, "\tView \"%s\"\n", name.c_str());
                 break;
             case 0xFFFFFF31:    //CLOD Mesh Generator Declaration
                 modifiers.push_back(new CLOD_Mesh(reader));
+                std::fprintf(stderr, "\tCLOD Mesh \"%s\"\n", name.c_str());
                 break;
             case 0xFFFFFF36:    //Point Set Declaration
             case 0xFFFFFF41:    //2D Glyph Modifier Block
             case 0xFFFFFF42:    //Subdivision Modifier Block
             case 0xFFFFFF43:    //Animation Modifier Block
             case 0xFFFFFF44:    //Bone Weight Modifier Block
-                std::fprintf(stderr, "Modifier Type 0x%08X is not implemented in the current version.\n", type);
+                std::fprintf(stderr, "Modifier Type 0x%08X is not implemented in the current version.\n", block.get_type());
                 return;
             case 0xFFFFFF45:    //Shading Modifier Block
                 modifiers.push_back(new Shading(reader));
+                std::fprintf(stderr, "\tShading \"%s\"\n", name.c_str());
                 break;
             case 0xFFFFFF46:    //CLOD Modifier Block
                 modifiers.push_back(new CLOD_Modifier(reader));
+                std::fprintf(stderr, "\tCLOD Modifier \"%s\"\n", name.c_str());
                 break;
             default:
-                std::fprintf(stderr, "Illegal modifier type: 0x%08X.\n", type);
+                std::fprintf(stderr, "Illegal modifier type: 0x%08X.\n", block.get_type());
                 return;
             }
         }
     }
+    virtual ~ModifierChain() {}
 };
 
-class Resource
+class LitTextureShader
 {
-};
-
-class LitTextureShader : public Resource
-{
-    std::string name;
     uint32_t attributes;
     float alpha_reference;
     uint32_t alpha_function, blend_function;
@@ -387,8 +369,7 @@ class LitTextureShader : public Resource
 public:
     LitTextureShader(BitStreamReader& reader)
     {
-        Block block(reader);
-        reader >> name >> attributes >> alpha_reference >> alpha_function >> blend_function;
+        reader >> attributes >> alpha_reference >> alpha_function >> blend_function;
         reader >> render_pass_flags >> shader_channels >> alpha_texture_channels >> material_name;
         for(unsigned int i = 0; i < 8; i++) {
             if(shader_channels & (1 << i)) {
@@ -397,28 +378,23 @@ public:
                 reader >> texinfos[i].repeat;
             }
         }
-        std::fprintf(stderr, "Lit Texture Shader Resource \"%s\"\n", name.c_str());
     }
 };
 
-class Material : public Resource
+class Material
 {
-    std::string name;
     uint32_t attributes;
     Color3f ambient, diffuse, specular, emissive;
     float reflectivity, opacity;
 public:
     Material(BitStreamReader& reader)
     {
-        Block block(reader);
-        reader >> name >> attributes >> ambient >> diffuse >> specular >> emissive >> reflectivity >> opacity;
-        std::fprintf(stderr, "Material \"%s\"\n", name.c_str());
+        reader >> attributes >> ambient >> diffuse >> specular >> emissive >> reflectivity >> opacity;
     }
 };
 
-class LightResource : public Resource
+class LightResource
 {
-    std::string name;
     uint32_t attributes;
     uint8_t type;
     Color3f color;
@@ -427,17 +403,14 @@ class LightResource : public Resource
 public:
     LightResource(BitStreamReader& reader)
     {
-        Block block(reader);
-        reader >> name >> attributes >> type >> color;
+        reader >> attributes >> type >> color;
         reader.read<float>();
         reader >> att_constant >> att_linear >> att_quadratic >> spot_angle >> intensity;
-        std::fprintf(stderr, "Light Resource \"%s\"\n", name.c_str());
     }
 };
 
-class ViewResource : public Resource
+class ViewResource
 {
-    std::string name;
     struct Pass
     {
         std::string root_node_name;
@@ -451,21 +424,17 @@ class ViewResource : public Resource
 public:
     ViewResource(BitStreamReader& reader)
     {
-        Block block(reader);
-        name = reader.read_str();
         uint32_t pass_count = reader.read<uint32_t>();
         passes.resize(pass_count);
         for(unsigned int i = 0; i < pass_count; i++) {
             reader >> passes[i].root_node_name >> passes[i].render_attributes;
             reader >> passes[i].fog_mode >> passes[i].fog_color >> passes[i].fog_alpha >> passes[i].fog_near >> passes[i].fog_far;
         }
-        std::fprintf(stderr, "View Resource \"%s\"\n", name.c_str());
     }
 };
 
-class Texture : public Resource
+class Texture
 {
-    std::string name;
     uint32_t width, height;
     uint8_t type;
     struct Continuation
@@ -478,8 +447,7 @@ class Texture : public Resource
 public:
     Texture(BitStreamReader& reader)
     {
-        Block block(reader);
-        reader >> name >> height >> width >> type;
+        reader >> height >> width >> type;
         uint32_t continuation_count = reader.read<uint32_t>();
         continuations.resize(continuation_count);
         for(unsigned int i = 0; i < continuation_count; i++) {
@@ -491,30 +459,69 @@ public:
                 reader >> continuations[i].byte_count;
             }
         }
-        std::fprintf(stderr, "Texture Resource \"%s\"\n", name.c_str());
     }
 };
+
+class NodeModifierChain : public Node, public ModifierChain
+{
+public:
+    NodeModifierChain(BitStreamReader& reader) : ModifierChain(reader)
+    {
+    }
+};
+
+class ModelResource : public ModifierChain
+{
+public:
+    ModelResource(BitStreamReader& reader) : ModifierChain(reader)
+    {
+    }
+};
+
+/*class TextureModifierChain : public Texture, public ModifierChain
+{
+public:
+    TextureModifierChain(BitStreamReader& reader) : ModifierChain(reader)
+    {
+    }
+};*/
 
 class U3D
 {
     BitStreamReader reader;
     FileHeader header;
     PriorityManager priority;
-    std::list<ModifierChain *> entities;
-    std::list<Resource *> resources;
+    std::unordered_map<std::string, ModelResource *> models;
+    std::unordered_map<std::string, LightResource *> lights;
+    std::unordered_map<std::string, ViewResource *> views;
+    std::unordered_map<std::string, Texture *> textures;
+    std::unordered_map<std::string, LitTextureShader *> shaders;
+    std::unordered_map<std::string, Material *> materials;
+    std::unordered_map<std::string, Node *> nodes;
 public:
-    U3D(const std::string& filename)
-        : reader(filename)
+    U3D(const std::string& filename) : reader(filename)
     {
-        while(true) {
-            uint32_t type = reader.read<uint32_t>();
+        while(reader) {
+            Block block(reader);
+            std::string name;
 
-            switch(type) {
+            switch(block.get_type()) {
             case 0x00443355:    //File Header Block
                 header.read_header_block(reader);
                 break;
             case 0xFFFFFF14:    //Modifier Chain Block
-                entities.push_back(new ModifierChain(reader));
+                name = reader.read_str();
+                switch(reader.read<uint32_t>()) {
+                case 0:
+                    nodes[name] = new NodeModifierChain(reader);
+                    break;
+                case 1:
+                    models[name] = new ModelResource(reader);
+                    break;
+                case 2:
+                    //textures[name] = new TextureModifierChain(reader);
+                    break;
+                }
                 break;
             case 0xFFFFFF15:    //Priority Update Block
                 priority.read_update_block(reader);
@@ -523,19 +530,29 @@ public:
                 std::fprintf(stderr, "New Object Type block is not supported in the current version.\n");
                 return;
             case 0xFFFFFF51:    //Light Resource Block
-                resources.push_back(new LightResource(reader));
+                name = reader.read_str();
+                lights[name] = new LightResource(reader);
+                std::fprintf(stderr, "Light Resource \"%s\"\n", name.c_str());
                 break;
             case 0xFFFFFF52:    //View Resource Block
-                resources.push_back(new ViewResource(reader));
+                name = reader.read_str();
+                views[name] = new ViewResource(reader);
+                std::fprintf(stderr, "View Resource \"%s\"\n", name.c_str());
                 break;
             case 0xFFFFFF53:    //Lit Texture Shader Block
-                resources.push_back(new LitTextureShader(reader));
+                name = reader.read_str();
+                shaders[name] = new LitTextureShader(reader);
+                std::fprintf(stderr, "Lit Texture Shader Resource \"%s\"\n", name.c_str());
                 break;
             case 0xFFFFFF54:    //Material Block
-                resources.push_back(new Material(reader));
+                name = reader.read_str();
+                materials[name] = new Material(reader);
+                std::fprintf(stderr, "Material \"%s\"\n", name.c_str());
                 break;
             case 0xFFFFFF55:    //Texture Declaration
-                resources.push_back(new Texture(reader));
+                name = reader.read_str();
+                textures[name] = new Texture(reader);
+                std::fprintf(stderr, "Texture Resource \"%s\"\n", name.c_str());
                 break;
             /*case 0xFFFFFF5C:    //Texture Continuation
                 break;
@@ -544,14 +561,16 @@ public:
             case 0xFFFFFF3C:    //CLOD Progressive Mesh Continuation
                 break;*/
             default:
-                if(0x00000100 <= type && type <= 0x00FFFFFF) {
+                if(0x00000100 <= block.get_type() && block.get_type() <= 0x00FFFFFF) {
                     std::fprintf(stderr, "New Object block is not supported in the current version.\n");
                 } else {
-                    std::fprintf(stderr, "Unknown block type: 0x%08X.\n", type);
+                    std::fprintf(stderr, "Unknown block type: 0x%08X.\n", block.get_type());
                 }
                 return;
             }
         }
+    }
+    ~U3D() {
     }
 };
 
