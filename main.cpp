@@ -2,10 +2,10 @@
 #include <iostream>
 #include <fstream>
 #include <string>
-#include <list>
 #include <cmath>
 #include <vector>
 #include <unordered_map>
+#include <list>
 
 #include "types.hpp"
 #include "bitstream.hpp"
@@ -51,7 +51,7 @@ class FileHeader
     uint32_t character_encoding;
     double units_scaling_factor;
 public:
-    FileHeader(BitStreamReader& reader) {
+    void read_header_block(BitStreamReader& reader) {
         Block block(reader);
         reader >> major_version >> minor_version >> profile_identifier >> declaration_size >> file_size >> character_encoding;
         units_scaling_factor = (profile_identifier & 0x8) ? reader.read<double>() : 1;
@@ -282,6 +282,20 @@ public:
     }
 };
 
+class CLOD_Modifier : public Modifier
+{
+    std::string name;
+    uint32_t chain_index, attributes;
+    float LOD_bias, level;
+public:
+    CLOD_Modifier(BitStreamReader& reader)
+    {
+        Block block(reader);
+        reader >> name >> chain_index >> attributes >> LOD_bias >> level;
+        std::fprintf(stderr, "\tCLOD Modifier \"%s\"\n", name.c_str());
+    }
+};
+
 class ModifierChain
 {
     std::string name;
@@ -324,22 +338,20 @@ public:
                 modifiers.push_back(new CLOD_Mesh(reader));
                 break;
             case 0xFFFFFF36:    //Point Set Declaration
-                break;
             case 0xFFFFFF41:    //2D Glyph Modifier Block
-                break;
             case 0xFFFFFF42:    //Subdivision Modifier Block
-                break;
             case 0xFFFFFF43:    //Animation Modifier Block
-                break;
             case 0xFFFFFF44:    //Bone Weight Modifier Block
-                break;
+                std::fprintf(stderr, "Modifier Type 0x%08X is not implemented in the current version.\n", type);
+                return;
             case 0xFFFFFF45:    //Shading Modifier Block
                 modifiers.push_back(new Shading(reader));
                 break;
             case 0xFFFFFF46:    //CLOD Modifier Block
+                modifiers.push_back(new CLOD_Modifier(reader));
                 break;
             default:
-                std::fprintf(stderr, "Unsupported modifier type: 0x%08X.\n", type);
+                std::fprintf(stderr, "Illegal modifier type: 0x%08X.\n", type);
                 return;
             }
         }
@@ -451,10 +463,42 @@ public:
     }
 };
 
+class Texture : public Resource
+{
+    std::string name;
+    uint32_t width, height;
+    uint8_t type;
+    struct Continuation
+    {
+        uint8_t compression_type, channels;
+        uint16_t attributes;
+        uint32_t byte_count;
+    };
+    std::vector<Continuation> continuations;
+public:
+    Texture(BitStreamReader& reader)
+    {
+        Block block(reader);
+        reader >> name >> height >> width >> type;
+        uint32_t continuation_count = reader.read<uint32_t>();
+        continuations.resize(continuation_count);
+        for(unsigned int i = 0; i < continuation_count; i++) {
+            reader >> continuations[i].compression_type >> continuations[i].channels >> continuations[i].attributes;
+            if(continuations[i].attributes & 0x0001) {
+                std::fprintf(stderr, "External texture reference is not implemented in the current version.\n");
+                return;
+            } else {
+                reader >> continuations[i].byte_count;
+            }
+        }
+        std::fprintf(stderr, "Texture Resource \"%s\"\n", name.c_str());
+    }
+};
+
 class U3D
 {
     BitStreamReader reader;
-    FileHeader *header;
+    FileHeader header;
     PriorityManager priority;
     std::list<ModifierChain *> entities;
     std::list<Resource *> resources;
@@ -467,7 +511,7 @@ public:
 
             switch(type) {
             case 0x00443355:    //File Header Block
-                header = new FileHeader(reader);
+                header.read_header_block(reader);
                 break;
             case 0xFFFFFF14:    //Modifier Chain Block
                 entities.push_back(new ModifierChain(reader));
@@ -491,13 +535,14 @@ public:
                 resources.push_back(new Material(reader));
                 break;
             case 0xFFFFFF55:    //Texture Declaration
+                resources.push_back(new Texture(reader));
                 break;
-            case 0xFFFFFF5C:    //Texture Continuation
+            /*case 0xFFFFFF5C:    //Texture Continuation
                 break;
             case 0xFFFFFF3B:    //CLOD Base Mesh Continuation
                 break;
             case 0xFFFFFF3C:    //CLOD Progressive Mesh Continuation
-                break;
+                break;*/
             default:
                 if(0x00000100 <= type && type <= 0x00FFFFFF) {
                     std::fprintf(stderr, "New Object block is not supported in the current version.\n");

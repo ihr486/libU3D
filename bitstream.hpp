@@ -3,11 +3,37 @@
 #include <cstdio>
 #include <iostream>
 #include <fstream>
+#include <array>
+#include <vector>
 
 #include "types.hpp"
 
+class Context
+{
+public:
+    enum {
+        cShading = 1, cDiffuseCount, cDiffuseColorSign, cColorDiffR, cColorDiffG, cColorDiffB
+    };
+    void add_symbol(uint32_t symbol)
+    {
+    }
+    uint32_t get_symbol_frequency(uint32_t symbol) const
+    {
+    }
+    uint32_t get_cumulative_symbol_frequency(uint32_t symbol) const
+    {
+    }
+    uint32_t get_total_symbol_frequency() const
+    {
+    }
+    uint32_t get_symbol_from_frequency(uint32_t frequency) const
+    {
+    }
+};
+
 class BitStreamReader
 {
+    std::array<Context, 256> contexts;
     std::ifstream ifs;
     size_t byte_position;
 public:
