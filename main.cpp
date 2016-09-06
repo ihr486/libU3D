@@ -9,32 +9,6 @@
 #include "types.hpp"
 #include "bitstream.hpp"
 
-class Block
-{
-    BitStreamReader& reader;
-    uint32_t type, data_size, metadata_size;
-    size_t position;
-    std::vector<uint32_t> data_buffer, metadata_buffer;
-private:
-    template<typename T, typename U> static T alignto(T a, U n) { return ((a + n - 1) / n) * n; }
-public:
-    Block(BitStreamReader& reader) : reader(reader) {
-        reader >> type >> data_size >> metadata_size;
-        position = reader.get_position();
-    }
-    uint32_t get_type() const {
-        return type;
-    }
-    ~Block() {
-        ssize_t n = alignto(data_size, 4) + alignto(metadata_size, 4) + position - reader.get_position();
-        if(n < 0) {
-            std::fprintf(stderr, "Overrun: %ld.\n", -n);
-        } else {
-            reader.skip(n);
-        }
-    }
-};
-
 class Modifier
 {
 public:
@@ -291,9 +265,9 @@ public:
         uint32_t modifier_count = reader.read<uint32_t>();
         resize(modifier_count);
         for(unsigned int i = 0; i < modifier_count; i++) {
-            Block block(reader);
+            BitStreamReader::SubBlock subblock(reader);
             std::string name = reader.read_str();
-            switch(block.get_type()) {
+            switch(subblock.get_type()) {
             case 0xFFFFFF21:    //Group Node Block
                 (*this)[i] = new Group(reader);
                 std::fprintf(stderr, "\tGroup node \"%s\"\n", name.c_str());
@@ -319,7 +293,7 @@ public:
             case 0xFFFFFF42:    //Subdivision Modifier Block
             case 0xFFFFFF43:    //Animation Modifier Block
             case 0xFFFFFF44:    //Bone Weight Modifier Block
-                std::fprintf(stderr, "Modifier Type 0x%08X is not implemented in the current version.\n", block.get_type());
+                std::fprintf(stderr, "Modifier Type 0x%08X is not implemented in the current version.\n", subblock.get_type());
                 return;
             case 0xFFFFFF45:    //Shading Modifier Block
                 (*this)[i] = new Shading(reader);
@@ -330,7 +304,7 @@ public:
                 std::fprintf(stderr, "\tCLOD Modifier \"%s\"\n", name.c_str());
                 break;
             default:
-                std::fprintf(stderr, "Illegal modifier type: 0x%08X.\n", block.get_type());
+                std::fprintf(stderr, "Illegal modifier type: 0x%08X.\n", subblock.get_type());
                 return;
             }
         }
@@ -500,7 +474,6 @@ public:
 
 class U3D
 {
-    BitStreamReader reader;
     FileHeader header;
     PriorityManager priority;
     std::unordered_map<std::string, ModelResource *> models;
@@ -510,14 +483,15 @@ class U3D
     std::unordered_map<std::string, LitTextureShader *> shaders;
     std::unordered_map<std::string, Material *> materials;
     std::unordered_map<std::string, Node *> nodes;
+    BitStreamReader reader;
 public:
     U3D(const std::string& filename) : reader(filename)
     {
         while(reader) {
-            Block block(reader);
+            reader.open_block();
             std::string name;
 
-            switch(block.get_type()) {
+            switch(reader.get_type()) {
             case 0x00443355:    //File Header Block
                 header.read_header_block(reader);
                 break;
@@ -588,10 +562,10 @@ public:
                 }
                 break;
             default:
-                if(0x00000100 <= block.get_type() && block.get_type() <= 0x00FFFFFF) {
-                    std::fprintf(stderr, "New Object block is not supported in the current version.\n");
+                if(0x00000100 <= reader.get_type() && reader.get_type() <= 0x00FFFFFF) {
+                    std::fprintf(stderr, "New Object block [%08X] is not supported in the current version.\n", reader.get_type());
                 } else {
-                    std::fprintf(stderr, "Unknown block type: 0x%08X.\n", block.get_type());
+                    std::fprintf(stderr, "Unknown block type: 0x%08X.\n", reader.get_type());
                 }
                 return;
             }
