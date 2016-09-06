@@ -5,7 +5,6 @@
 #include <cmath>
 #include <vector>
 #include <unordered_map>
-#include <list>
 
 #include "types.hpp"
 #include "bitstream.hpp"
@@ -42,7 +41,7 @@ class Modifier
 {
 public:
     Modifier() {}
-    ~Modifier() {}
+    virtual ~Modifier() {}
 };
 
 class FileHeader
@@ -276,14 +275,12 @@ public:
     }
 };
 
-class ModifierChain
+class ModifierChain : public std::vector<Modifier *>
 {
     uint32_t attribute;
     Vector3f bsphere;
     float bsphere_radius;
     Vector3f aabb_min, aabb_max;
-    uint32_t modifier_count;
-    std::list<Modifier *> modifiers;
 public:
     ModifierChain(BitStreamReader& reader) {
         reader >> attribute;
@@ -293,32 +290,30 @@ public:
             reader >> aabb_min >> aabb_max;
         }
         reader.align_to_word();
-        modifier_count = reader.read<uint32_t>();
-
-        //std::fprintf(stderr, "Modifier Chain: %s [%u blocks]\n", name.c_str(), modifier_count);
-
+        uint32_t modifier_count = reader.read<uint32_t>();
+        resize(modifier_count);
         for(unsigned int i = 0; i < modifier_count; i++) {
             Block block(reader);
             std::string name = reader.read_str();
             switch(block.get_type()) {
             case 0xFFFFFF21:    //Group Node Block
-                modifiers.push_back(new Group(reader));
-                std::fprintf(stderr, "Group node \"%s\"\n", name.c_str());
+                (*this)[i] = new Group(reader);
+                std::fprintf(stderr, "\tGroup node \"%s\"\n", name.c_str());
                 break;
             case 0xFFFFFF22:    //Model Node Block
-                modifiers.push_back(new Model(reader));
+                (*this)[i] = new Model(reader);
                 std::fprintf(stderr, "\tModel \"%s\"\n", name.c_str());
                 break;
             case 0xFFFFFF23:    //Light Node Block
-                modifiers.push_back(new Light(reader));
+                (*this)[i] = new Light(reader);
                 std::fprintf(stderr, "\tLight \"%s\"\n", name.c_str());
                 break;
             case 0xFFFFFF24:    //View Node Block
-                modifiers.push_back(new View(reader));
+                (*this)[i] = new View(reader);
                 std::fprintf(stderr, "\tView \"%s\"\n", name.c_str());
                 break;
             case 0xFFFFFF31:    //CLOD Mesh Generator Declaration
-                modifiers.push_back(new CLOD_Mesh(reader));
+                (*this)[i] = new CLOD_Mesh(reader);
                 std::fprintf(stderr, "\tCLOD Mesh \"%s\"\n", name.c_str());
                 break;
             case 0xFFFFFF36:    //Point Set Declaration
@@ -329,11 +324,11 @@ public:
                 std::fprintf(stderr, "Modifier Type 0x%08X is not implemented in the current version.\n", block.get_type());
                 return;
             case 0xFFFFFF45:    //Shading Modifier Block
-                modifiers.push_back(new Shading(reader));
+                (*this)[i] = new Shading(reader);
                 std::fprintf(stderr, "\tShading \"%s\"\n", name.c_str());
                 break;
             case 0xFFFFFF46:    //CLOD Modifier Block
-                modifiers.push_back(new CLOD_Modifier(reader));
+                (*this)[i] = new CLOD_Modifier(reader);
                 std::fprintf(stderr, "\tCLOD Modifier \"%s\"\n", name.c_str());
                 break;
             default:
@@ -486,6 +481,25 @@ public:
     }
 };*/
 
+class CLOD_BaseMesh
+{
+public:
+    CLOD_BaseMesh(BitStreamReader& reader)
+    {
+    }
+};
+
+class CLOD_ProgressiveMesh
+{
+    uint32_t start, end;
+public:
+    CLOD_ProgressiveMesh(BitStreamReader& reader)
+    {
+        reader.read<uint32_t>();    //Chain index is always zero.
+        reader >> start >> end;
+    }
+};
+
 class U3D
 {
     BitStreamReader reader;
@@ -511,6 +525,7 @@ public:
                 break;
             case 0xFFFFFF14:    //Modifier Chain Block
                 name = reader.read_str();
+                std::fprintf(stderr, "Modifier Chain \"%s\"\n", name.c_str());
                 switch(reader.read<uint32_t>()) {
                 case 0:
                     nodes[name] = new NodeModifierChain(reader);
@@ -557,9 +572,23 @@ public:
             /*case 0xFFFFFF5C:    //Texture Continuation
                 break;
             case 0xFFFFFF3B:    //CLOD Base Mesh Continuation
-                break;
-            case 0xFFFFFF3C:    //CLOD Progressive Mesh Continuation
                 break;*/
+            case 0xFFFFFF3C:    //CLOD Progressive Mesh Continuation
+                name = reader.read_str();
+                if(models[name] != nullptr) {
+                    CLOD_Mesh *decl = dynamic_cast<CLOD_Mesh *>(models[name]->front());
+                    if(decl != nullptr) {
+                        new CLOD_ProgressiveMesh(reader);
+                        std::fprintf(stderr, "CLOD Progressive Mesh Continuation \"%s\"\n", name.c_str());
+                    } else {
+                        std::fprintf(stderr, "CLOD Progressive Mesh Continuation \"%s\" is not tied to its parent.\n", name.c_str());
+                        return;
+                    }
+                } else {
+                    std::fprintf(stderr, "CLOD Progressive Mesh Continuation \"%s\" is not declared.\n", name.c_str());
+                    return;
+                }
+                break;
             default:
                 if(0x00000100 <= block.get_type() && block.get_type() <= 0x00FFFFFF) {
                     std::fprintf(stderr, "New Object block is not supported in the current version.\n");
