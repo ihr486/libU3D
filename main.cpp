@@ -14,6 +14,7 @@ class Block
     BitStreamReader& reader;
     uint32_t type, data_size, metadata_size;
     size_t position;
+    std::vector<uint32_t> data_buffer, metadata_buffer;
 private:
     template<typename T, typename U> static T alignto(T a, U n) { return ((a + n - 1) / n) * n; }
 public:
@@ -23,9 +24,6 @@ public:
     }
     uint32_t get_type() const {
         return type;
-    }
-    void jump_to_metadata() {
-        reader.skip(alignto(data_size, 4) + position - reader.get_position());
     }
     ~Block() {
         ssize_t n = alignto(data_size, 4) + alignto(metadata_size, 4) + position - reader.get_position();

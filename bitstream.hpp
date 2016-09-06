@@ -10,6 +10,7 @@
 
 class Context
 {
+    std::vector<uint16_t> symbol_count, cumul_count;
 public:
     enum {
         cShading = 1, cDiffuseCount, cDiffuseColorSign, cColorDiffR, cColorDiffG, cColorDiffB
@@ -33,11 +34,12 @@ public:
 
 class BitStreamReader
 {
-    std::array<Context, 256> contexts;
     std::ifstream ifs;
     size_t byte_position;
+    uint32_t high, low;
+    unsigned int underflow;
 public:
-    BitStreamReader(const std::string& filename)
+    BitStreamReader(const std::string& filename) : high(0xFFFF), low(0), underflow(0)
     {
         ifs.open(filename, std::ios::in);
         if(!ifs.is_open()) {
@@ -79,7 +81,7 @@ public:
         *this >> ret;
         return ret;
     }
-    Vector3f read_vector3f()
+    /*Vector3f read_vector3f()
     {
         return Vector3f{read<float>(), read<float>(), read<float>()};
     }
@@ -104,7 +106,7 @@ public:
     Quaternion4f read_quaternion4f()
     {
         return Quaternion4f{read<float>(), read<float>(), read<float>(), read<float>()};
-    }
+    }*/
     void align_to_word()
     {
         if(byte_position % 4) {
