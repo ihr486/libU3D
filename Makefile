@@ -5,8 +5,8 @@ CXXOBJS := $(CXXSRCS:%.cpp=%.o)
 OBJS := $(CXXOBJS)
 
 CXX := g++
-CXXFLAGS := -Wall -Wextra -std=c++11 -Os
-LDFLAGS := -lm
+CXXFLAGS := -Wall -Wextra -std=c++11 -Os $(shell pkg-config --cflags libjpeg libpng libtiff-4)
+LDFLAGS := -lm $(shell pkg-config --libs libjpeg libpng libtiff-4)
 
 BIN := u3d
 

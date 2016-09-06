@@ -7,125 +7,19 @@
 #include <vector>
 #include <unordered_map>
 
-template<typename T> struct Vector3
-{
-    T x, y, z;
-};
-
-template<typename T> struct Vector2
-{
-    T u, v;
-};
-
-template<typename T> struct Color3
-{
-    T r, g, b;
-};
-
-template<typename T> struct Matrix4
-{
-    T m[4][4];
-};
-
-template<typename T> struct Quaternion4
-{
-    T w, x, y, z;
-};
-
-using Vector3f = Vector3<float>;
-using Matrix4f = Matrix4<float>;
-using Color3f = Color3<float>;
-using Quaternion4f = Quaternion4<float>;
-using Vector2f = Vector2<float>;
-
-class BinaryReader
-{
-    std::ifstream ifs;
-    size_t byte_position;
-public:
-    BinaryReader(const std::string& filename)
-    {
-        ifs.open(filename, std::ios::in);
-        if(!ifs.is_open()) {
-            std::fprintf(stderr, "Failed to open: %s.\n", filename.c_str());
-        }
-        byte_position = 0;
-    }
-    template<typename T> T read()
-    {
-        T ret;
-
-        ifs.read(reinterpret_cast<char *>(&ret), sizeof(T));
-        byte_position += sizeof(T);
-
-        return ret;
-    }
-    std::string read_str()
-    {
-        std::string ret;
-
-        uint16_t size = read<uint16_t>();
-
-        for(int i = 0; i < size; i++) {
-            ret.push_back(ifs.get());
-        }
-        byte_position += size;
-
-        return ret;
-    }
-    Vector3f read_vector3f()
-    {
-        return Vector3f{read<float>(), read<float>(), read<float>()};
-    }
-    Color3f read_color3f()
-    {
-        return Color3f{read<float>(), read<float>(), read<float>()};
-    }
-    Vector2f read_vector2f()
-    {
-        return Vector2f{read<float>(), read<float>()};
-    }
-    Matrix4f read_matrix4f()
-    {
-        Matrix4f ret;
-        for(int x = 0; x < 4; x++) {
-            for(int y = 0; y < 4; y++) {
-                ret.m[y][x] = read<float>();
-            }
-        }
-        return ret;
-    }
-    Quaternion4f read_quaternion4f()
-    {
-        return Quaternion4f{read<float>(), read<float>(), read<float>(), read<float>()};
-    }
-    void align_to_word()
-    {
-        if(byte_position % 4) {
-            ifs.ignore(4 - (byte_position % 4));
-            byte_position += 4 - (byte_position % 4);
-        }
-    }
-    size_t get_position() const { return byte_position; }
-    void skip(size_t n) {
-        if(n > 0) {
-            ifs.ignore(n);
-            byte_position += n;
-        }
-    }
-};
+#include "types.hpp"
+#include "bitstream.hpp"
 
 class Block
 {
-    BinaryReader& reader;
+    BitStreamReader& reader;
     uint32_t data_size, metadata_size;
     size_t position;
 private:
     template<typename T, typename U> static T alignto(T a, U n) { return ((a + n - 1) / n) * n; }
 public:
-    Block(BinaryReader& reader) : reader(reader) {
-        data_size = reader.read<uint32_t>();
-        metadata_size = reader.read<uint32_t>();
+    Block(BitStreamReader& reader) : reader(reader) {
+        reader >> data_size >> metadata_size;
         position = reader.get_position();
     }
     void jump_to_metadata() {
@@ -157,19 +51,10 @@ class FileHeader
     uint32_t character_encoding;
     double units_scaling_factor;
 public:
-    FileHeader(BinaryReader& reader) {
+    FileHeader(BitStreamReader& reader) {
         Block block(reader);
-        major_version = reader.read<uint16_t>();
-        minor_version = reader.read<uint16_t>();
-        profile_identifier = reader.read<uint32_t>();
-        declaration_size = reader.read<uint32_t>();
-        file_size = reader.read<uint64_t>();
-        character_encoding = reader.read<uint32_t>();
-        if(profile_identifier & 0x8) {
-            units_scaling_factor = reader.read<double>();
-        } else {
-            units_scaling_factor = 1;
-        }
+        reader >> major_version >> minor_version >> profile_identifier >> declaration_size >> file_size >> character_encoding;
+        units_scaling_factor = (profile_identifier & 0x8) ? reader.read<double>() : 1;
         std::fprintf(stderr, "FileHeaderBlock created.\n");
     }
 };
@@ -179,9 +64,9 @@ class PriorityManager
     uint32_t priority;
 public:
     PriorityManager() : priority(0) {}
-    uint32_t read_update_block(BinaryReader& reader) {
+    uint32_t read_update_block(BitStreamReader& reader) {
         Block block(reader);
-        priority = reader.read<uint32_t>();
+        reader >> priority;
         std::fprintf(stderr, "New priority : %u.\n", priority);
         return priority;
     }
@@ -197,14 +82,13 @@ protected:
     std::string name;
     std::vector<Parent> parents;
 public:
-    void read(BinaryReader& reader)
+    void read(BitStreamReader& reader)
     {
-        name = reader.read_str();
+        reader >> name;
         uint32_t parent_count = reader.read<uint32_t>();
         parents.resize(parent_count);
         for(unsigned int i = 0; i < parent_count; i++) {
-            parents[i].name = reader.read_str();
-            parents[i].transform = reader.read_matrix4f();
+            reader >> parents[i].name >> parents[i].transform;
         }
     }
 };
@@ -212,7 +96,7 @@ public:
 class Group : public Node, public Modifier
 {
 public:
-    Group(BinaryReader& reader)
+    Group(BitStreamReader& reader)
     {
         Block block(reader);
         Node::read(reader);
@@ -237,53 +121,35 @@ class View : public Node, public Modifier
     };
     std::vector<Backdrop> backdrops, overlays;
 public:
-    View(BinaryReader& reader)
+    View(BitStreamReader& reader)
     {
         Block block(reader);
         Node::read(reader);
-        resource_name = reader.read_str();
-        attributes = reader.read<uint32_t>();
-        near_clipping = reader.read<float>();
-        far_clipping = reader.read<float>();
+        reader >> resource_name >> attributes >> near_clipping >> far_clipping;
         switch(attributes & 0x6) {
         case 0: //Three-point perspective projection
-            projection = reader.read<float>();
+            reader >> projection;
             break;
         case 2: //Orthographic projection
-            ortho_height = reader.read<float>();
+            reader >> ortho_height;
             break;
         case 4: //One-point perspective projection
         case 6: //Two-point perspective projection
-            proj_vector = reader.read_vector3f();
+            reader >> proj_vector;
             break;
         }
-        port_w = reader.read<float>();
-        port_h = reader.read<float>();
-        port_x = reader.read<float>();
-        port_y = reader.read<float>();
+        reader >> port_w >> port_h >> port_x >> port_y;
         uint32_t backdrop_count = reader.read<uint32_t>();
         backdrops.resize(backdrop_count);
         for(unsigned int i = 0; i < backdrop_count; i++) {
-            backdrops[i].texture_name = reader.read_str();
-            backdrops[i].blend = reader.read<float>();
-            backdrops[i].location_x = reader.read<float>();
-            backdrops[i].location_y = reader.read<float>();
-            backdrops[i].reg_x = reader.read<int32_t>();
-            backdrops[i].reg_y = reader.read<int32_t>();
-            backdrops[i].scale_x = reader.read<float>();
-            backdrops[i].scale_y = reader.read<float>();
+            reader >> backdrops[i].texture_name >> backdrops[i].blend >> backdrops[i].location_x >> backdrops[i].location_y;
+            reader >> backdrops[i].reg_x >> backdrops[i].reg_y >> backdrops[i].scale_x >> backdrops[i].scale_y;
         }
         uint32_t overlay_count = reader.read<uint32_t>();
         overlays.resize(overlay_count);
         for(unsigned int i = 0; i < overlay_count; i++) {
-            overlays[i].texture_name = reader.read_str();
-            overlays[i].blend = reader.read<float>();
-            overlays[i].location_x = reader.read<float>();
-            overlays[i].location_y = reader.read<float>();
-            overlays[i].reg_x = reader.read<int32_t>();
-            overlays[i].reg_y = reader.read<int32_t>();
-            overlays[i].scale_x = reader.read<float>();
-            overlays[i].scale_y = reader.read<float>();
+            reader >> backdrops[i].texture_name >> backdrops[i].blend >> backdrops[i].location_x >> backdrops[i].location_y;
+            reader >> backdrops[i].reg_x >> backdrops[i].reg_y >> backdrops[i].scale_x >> backdrops[i].scale_y;
         }
 
         std::fprintf(stderr, "\tView \"%s\" -> \"%s\"\n", name.c_str(), resource_name.c_str());
@@ -295,12 +161,11 @@ class Model : public Node, public Modifier
     std::string resource_name;
     uint32_t visibility;
 public:
-    Model(BinaryReader& reader)
+    Model(BitStreamReader& reader)
     {
         Block block(reader);
         Node::read(reader);
-        resource_name = reader.read_str();
-        visibility = reader.read<uint32_t>();
+        reader >> resource_name >> visibility;
 
         std::fprintf(stderr, "\tModel \"%s\" -> \"%s\"\n", name.c_str(), resource_name.c_str());
     }
@@ -310,11 +175,11 @@ class Light : public Node, public Modifier
 {
     std::string resource_name;
 public:
-    Light(BinaryReader& reader)
+    Light(BitStreamReader& reader)
     {
         Block block(reader);
         Node::read(reader);
-        resource_name = reader.read_str();
+        reader >> resource_name;
 
         std::fprintf(stderr, "\tLight \"%s\" -> \"%s\"\n", name.c_str(), resource_name.c_str());
     }
@@ -326,19 +191,17 @@ class Shading : public Modifier
     uint32_t chain_index, attributes;
     std::vector<std::vector<std::string>> shader_names;
 public:
-    Shading(BinaryReader& reader)
+    Shading(BitStreamReader& reader)
     {
         Block block(reader);
-        name = reader.read_str();
-        chain_index = reader.read<uint32_t>();
-        attributes = reader.read<uint32_t>();
+        reader >> name >> chain_index >> attributes;
         uint32_t list_count = reader.read<uint32_t>();
         shader_names.resize(list_count);
         for(unsigned int i = 0; i < list_count; i++) {
             uint32_t shader_count = reader.read<uint32_t>();
             shader_names[i].resize(shader_count);
             for(unsigned int j = 0; j < shader_count; j++) {
-                shader_names[i][j] = reader.read_str();
+                reader >> shader_names[i][j];
             }
         }
 
@@ -378,18 +241,12 @@ class CLOD_Mesh : public Modifier
     };
     std::vector<Bone> skeleton;
 public:
-    CLOD_Mesh(BinaryReader& reader)
+    CLOD_Mesh(BitStreamReader& reader)
     {
         Block block(reader);
-        name = reader.read_str();
-        chain_index = reader.read<uint32_t>();
-        maxmesh.attributes = reader.read<uint32_t>();
-        maxmesh.face_count = reader.read<uint32_t>();
-        maxmesh.position_count = reader.read<uint32_t>();
-        maxmesh.normal_count = reader.read<uint32_t>();
-        maxmesh.diffuse_count = reader.read<uint32_t>();
-        maxmesh.specular_count = reader.read<uint32_t>();
-        maxmesh.texcoord_count = reader.read<uint32_t>();
+        reader >> name >> chain_index;
+        reader >> maxmesh.attributes >> maxmesh.face_count >> maxmesh.position_count >> maxmesh.normal_count;
+        reader >> maxmesh.diffuse_count >> maxmesh.specular_count >> maxmesh.texcoord_count;
         uint32_t shading_count = reader.read<uint32_t>();
         maxmesh.shading_descs.resize(shading_count);
         for(unsigned int i = 0; i < shading_count; i++) {
@@ -401,37 +258,21 @@ public:
             }
             reader.read<uint32_t>();
         }
-        min_res = reader.read<uint32_t>();
-        max_res = reader.read<uint32_t>();
-        position_quality = reader.read<uint32_t>();
-        normal_quality = reader.read<uint32_t>();
-        texcoord_quality = reader.read<uint32_t>();
-        position_iq = reader.read<float>();
-        normal_iq = reader.read<float>();
-        texcoord_iq = reader.read<float>();
-        diffuse_iq = reader.read<float>();
-        specular_iq = reader.read<float>();
-        normal_crease = reader.read<float>();
-        normal_update = reader.read<float>();
-        normal_tolerance = reader.read<float>();
+        reader >> min_res >> max_res;
+        reader >> position_quality >> normal_quality >> texcoord_quality;
+        reader >> position_iq >> normal_iq >> texcoord_iq >> diffuse_iq >> specular_iq;
+        reader >> normal_crease >> normal_update >> normal_tolerance;
         uint32_t bone_count = reader.read<uint32_t>();
         skeleton.resize(bone_count);
         for(unsigned int i = 0; i < bone_count; i++) {
-            skeleton[i].name = reader.read_str();
-            skeleton[i].parent_name = reader.read_str();
-            skeleton[i].attributes = reader.read<uint32_t>();
-            skeleton[i].length = reader.read<float>();
-            skeleton[i].displacement = reader.read_vector3f();
-            skeleton[i].orientation = reader.read_quaternion4f();
+            reader >> skeleton[i].name >> skeleton[i].parent_name >> skeleton[i].attributes;
+            reader >> skeleton[i].length >> skeleton[i].displacement >> skeleton[i].orientation;
             if(skeleton[i].attributes & 0x00000001) {
-                skeleton[i].link_count = reader.read<uint32_t>();
-                skeleton[i].link_length = reader.read<float>();
+                reader >> skeleton[i].link_count >> skeleton[i].link_length;
             }
             if(skeleton[i].attributes & 0x00000002) {
-                skeleton[i].start_joint_center = reader.read_vector2f();
-                skeleton[i].start_joint_scale = reader.read_vector2f();
-                skeleton[i].end_joint_center = reader.read_vector2f();
-                skeleton[i].end_joint_scale = reader.read_vector2f();
+                reader >> skeleton[i].start_joint_center >> skeleton[i].start_joint_scale;
+                reader >> skeleton[i].end_joint_center >> skeleton[i].end_joint_scale;
             }
             for(int j = 0; j < 6; j++) {
                 reader.read<float>();   //Skip past the rotation constraints
@@ -451,17 +292,13 @@ class ModifierChain
     uint32_t modifier_count;
     std::list<Modifier *> modifiers;
 public:
-    ModifierChain(BinaryReader& reader) {
+    ModifierChain(BitStreamReader& reader) {
         Block block(reader);
-        name = reader.read_str();
-        type = reader.read<uint32_t>();
-        attribute = reader.read<uint32_t>();
+        reader >> name >> type >> attribute;
         if(attribute & 0x00000001) {
-            bsphere = reader.read_vector3f();
-            bsphere_radius = reader.read<float>();
+            reader >> bsphere >> bsphere_radius;
         } else if(attribute & 0x00000002) {
-            aabb_min = reader.read_vector3f();
-            aabb_max = reader.read_vector3f();
+            reader >> aabb_min >> aabb_max;
         }
         reader.align_to_word();
         modifier_count = reader.read<uint32_t>();
@@ -536,29 +373,16 @@ class LitTextureShader : public Resource
     };
     TextureInfo texinfos[8];
 public:
-    LitTextureShader(BinaryReader& reader)
+    LitTextureShader(BitStreamReader& reader)
     {
         Block block(reader);
-        name = reader.read_str();
-        attributes = reader.read<uint32_t>();
-        alpha_reference = reader.read<float>();
-        alpha_function = reader.read<uint32_t>();
-        blend_function = reader.read<uint32_t>();
-        render_pass_flags = reader.read<uint32_t>();
-        shader_channels = reader.read<uint32_t>();
-        alpha_texture_channels = reader.read<uint32_t>();
-        material_name = reader.read_str();
+        reader >> name >> attributes >> alpha_reference >> alpha_function >> blend_function;
+        reader >> render_pass_flags >> shader_channels >> alpha_texture_channels >> material_name;
         for(unsigned int i = 0; i < 8; i++) {
             if(shader_channels & (1 << i)) {
-                texinfos[i].name = reader.read_str();
-                texinfos[i].intensity = reader.read<float>();
-                texinfos[i].blend_function = reader.read<uint8_t>();
-                texinfos[i].blend_source = reader.read<uint8_t>();
-                texinfos[i].blend_constant = reader.read<float>();
-                texinfos[i].mode = reader.read<uint8_t>();
-                texinfos[i].transform = reader.read_matrix4f();
-                texinfos[i].wrap_transform = reader.read_matrix4f();
-                texinfos[i].repeat = reader.read<uint8_t>();
+                reader >> texinfos[i].name >> texinfos[i].intensity >> texinfos[i].blend_function >> texinfos[i].blend_source;
+                reader >> texinfos[i].blend_constant >> texinfos[i].mode >> texinfos[i].transform >> texinfos[i].wrap_transform;
+                reader >> texinfos[i].repeat;
             }
         }
         std::fprintf(stderr, "Lit Texture Shader Resource \"%s\"\n", name.c_str());
@@ -572,18 +396,10 @@ class Material : public Resource
     Color3f ambient, diffuse, specular, emissive;
     float reflectivity, opacity;
 public:
-    Material(BinaryReader& reader)
+    Material(BitStreamReader& reader)
     {
         Block block(reader);
-        name = reader.read_str();
-        attributes = reader.read<uint32_t>();
-        ambient = reader.read_color3f();
-        diffuse = reader.read_color3f();
-        specular = reader.read_color3f();
-        emissive = reader.read_color3f();
-        reflectivity = reader.read<float>();
-        opacity = reader.read<float>();
-
+        reader >> name >> attributes >> ambient >> diffuse >> specular >> emissive >> reflectivity >> opacity;
         std::fprintf(stderr, "Material \"%s\"\n", name.c_str());
     }
 };
@@ -597,20 +413,12 @@ class LightResource : public Resource
     float att_constant, att_linear, att_quadratic;
     float spot_angle, intensity;
 public:
-    LightResource(BinaryReader& reader)
+    LightResource(BitStreamReader& reader)
     {
         Block block(reader);
-        name = reader.read_str();
-        attributes = reader.read<uint32_t>();
-        type = reader.read<uint8_t>();
-        color = reader.read_color3f();
+        reader >> name >> attributes >> type >> color;
         reader.read<float>();
-        att_constant = reader.read<float>();
-        att_linear = reader.read<float>();
-        att_quadratic = reader.read<float>();
-        spot_angle = reader.read<float>();
-        intensity = reader.read<float>();
-
+        reader >> att_constant >> att_linear >> att_quadratic >> spot_angle >> intensity;
         std::fprintf(stderr, "Light Resource \"%s\"\n", name.c_str());
     }
 };
@@ -629,20 +437,15 @@ class ViewResource : public Resource
     };
     std::vector<Pass> passes;
 public:
-    ViewResource(BinaryReader& reader)
+    ViewResource(BitStreamReader& reader)
     {
         Block block(reader);
         name = reader.read_str();
         uint32_t pass_count = reader.read<uint32_t>();
         passes.resize(pass_count);
         for(unsigned int i = 0; i < pass_count; i++) {
-            passes[i].root_node_name = reader.read_str();
-            passes[i].render_attributes = reader.read<uint32_t>();
-            passes[i].fog_mode = reader.read<uint32_t>();
-            passes[i].fog_color = reader.read_color3f();
-            passes[i].fog_alpha = reader.read<float>();
-            passes[i].fog_near = reader.read<float>();
-            passes[i].fog_far = reader.read<float>();
+            reader >> passes[i].root_node_name >> passes[i].render_attributes;
+            reader >> passes[i].fog_mode >> passes[i].fog_color >> passes[i].fog_alpha >> passes[i].fog_near >> passes[i].fog_far;
         }
         std::fprintf(stderr, "View Resource \"%s\"\n", name.c_str());
     }
@@ -650,7 +453,7 @@ public:
 
 class U3D
 {
-    BinaryReader reader;
+    BitStreamReader reader;
     FileHeader *header;
     PriorityManager priority;
     std::list<ModifierChain *> entities;
