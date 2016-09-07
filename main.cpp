@@ -543,6 +543,8 @@ public:
                 textures[name] = new Texture(reader);
                 std::fprintf(stderr, "Texture Resource \"%s\"\n", name.c_str());
                 break;
+            case 0xFFFFFF56:    //Motion Declaration
+                break;
             /*case 0xFFFFFF5C:    //Texture Continuation
                 break;
             case 0xFFFFFF3B:    //CLOD Base Mesh Continuation

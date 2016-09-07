@@ -14,11 +14,31 @@ namespace U3D
 class BitStreamReader
 {
     friend class DynamicContext;
-
+public:
+    class SubBlock
+    {
+        BitStreamReader& reader;
+        uint32_t type;
+        uint32_t data_size, metadata_size;
+        size_t origin;
+    public:
+        SubBlock(BitStreamReader& reader) : reader(reader)
+        {
+            reader >> type >> data_size >> metadata_size;
+            origin = reader.bit_position;
+        }
+        uint32_t get_type() const { return type; }
+        ~SubBlock()
+        {
+            reader.bit_position = origin + ((data_size + 3) / 4 + (metadata_size + 3) / 4) * 32;
+        }
+    };
+private:
     std::ifstream ifs;
     size_t bit_position;
     uint32_t high, low, underflow, type;
     std::vector<uint32_t> data_buffer, metadata_buffer;
+    static const uint8_t bit_reverse_table[256];
 private:
     uint32_t read_word_direct()
     {
@@ -26,7 +46,6 @@ private:
         ifs.read(reinterpret_cast<char *>(&ret), 4);
         return ret;
     }
-    static const uint8_t bit_reverse_table[256];
 public:
     BitStreamReader(const std::string& filename);
     bool open_block();
@@ -37,7 +56,7 @@ public:
         uint32_t data_size = (read<uint32_t>() + 3) / 4;
         uint32_t metadata_size = (read<uint32_t>() + 3) / 4;
         std::fprintf(stderr, "Block opened: %08X-%u/%u\n", type, data_size, metadata_size);*/
-    template<typename T> T read()
+    template<typename T> typename std::enable_if<std::is_pod<T>::value, T>::type read()
     {
         T ret;
         uint8_t *p = reinterpret_cast<uint8_t *>(&ret);
@@ -83,24 +102,6 @@ public:
         bit_position = ((bit_position + 31) / 32) * 32;
     }
     uint32_t get_type() const { return type; }
-    class SubBlock
-    {
-        BitStreamReader& reader;
-        uint32_t type;
-        uint32_t data_size, metadata_size;
-        size_t origin;
-    public:
-        SubBlock(BitStreamReader& reader) : reader(reader)
-        {
-            reader >> type >> data_size >> metadata_size;
-            origin = reader.bit_position;
-        }
-        uint32_t get_type() const { return type; }
-        ~SubBlock()
-        {
-            reader.bit_position = origin + ((data_size + 3) / 4 + (metadata_size + 3) / 4) * 32;
-        }
-    };
     uint32_t read_static_symbol(uint32_t context);
     uint32_t read_byte()
     {
