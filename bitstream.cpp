@@ -82,4 +82,45 @@ uint32_t BitStreamReader::read_static_symbol(uint32_t context)
     return value;
 }
 
+uint32_t BitStreamReader::read_dynamic_symbol(uint32_t context)
+{
+    size_t checkpoint = bit_position;
+    uint32_t code = read_bit() << 15;
+    bit_position += underflow;
+    uint32_t temp = read_bits(15);
+    code |= (bit_reverse_table[temp & 0xFF] << 7) | (bit_reverse_table[temp >> 8] >> 1);
+    bit_position = checkpoint;
+
+    uint32_t range = high + 1 - low;
+    uint32_t total_freq = dynamic_contexts[context].get_total_symbol_frequency();
+    uint32_t cum_freq = (total_freq * (1 + code - low) - 1) / range;
+    auto lookup_result = dynamic_contexts[context].get_symbol_from_frequency(cum_freq);
+    uint32_t symbol = lookup_result.first;
+    uint32_t val_cum_freq = lookup_result.second;
+    uint32_t val_freq = dynamic_contexts[context].get_symbol_frequency(symbol);
+
+    high = low - 1 + range * (val_cum_freq + val_freq) / total_freq;
+    low = low + range * val_cum_freq / total_freq;
+
+    dynamic_contexts[context].add_symbol(symbol);
+
+    unsigned int bit_count = 0;
+    while((low & 0x8000) == (high & 0x8000)) {
+        low = (0x7FFF & low) << 1;
+        high = ((0x7FFF & high) << 1) | 1;
+        bit_count++;
+    }
+    if(bit_count > 0) {
+        bit_count += underflow;
+        underflow = 0;
+    }
+    while((low & 0x4000) && !(high & 0x4000)) {
+        low = (low & 0x3FFF) << 1;
+        high = ((high & 0x3FFF) << 1) | 0x8001;
+        underflow++;
+    }
+    bit_position += bit_count;
+    return symbol;
+}
+
 }
