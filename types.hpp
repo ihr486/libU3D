@@ -1,5 +1,8 @@
 #pragma once
 
+namespace U3D
+{
+
 template<typename T> struct Vector3
 {
     T x, y, z;
@@ -31,3 +34,4 @@ using Color3f = Color3<float>;
 using Quaternion4f = Quaternion4<float>;
 using Vector2f = Vector2<float>;
 
+}

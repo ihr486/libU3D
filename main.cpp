@@ -9,6 +9,9 @@
 #include "types.hpp"
 #include "bitstream.hpp"
 
+namespace U3D
+{
+
 class Modifier
 {
 public:
@@ -472,7 +475,7 @@ public:
     }
 };
 
-class U3D
+class U3DContext
 {
     FileHeader header;
     PriorityManager priority;
@@ -485,7 +488,7 @@ class U3D
     std::unordered_map<std::string, Node *> nodes;
     BitStreamReader reader;
 public:
-    U3D(const std::string& filename) : reader(filename)
+    U3DContext(const std::string& filename) : reader(filename)
     {
         while(reader.open_block()) {
             std::string name;
@@ -570,9 +573,11 @@ public:
             }
         }
     }
-    ~U3D() {
+    ~U3DContext() {
     }
 };
+
+}
 
 int main(int argc, char * const argv[])
 {
@@ -583,7 +588,7 @@ int main(int argc, char * const argv[])
         return 1;
     }
 
-    U3D u3d(argv[1]);
+    U3D::U3DContext context(argv[1]);
 
     std::fprintf(stderr, "%s successfully parsed.\n", argv[1]);
     
