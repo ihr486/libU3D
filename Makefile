@@ -1,6 +1,7 @@
 #Makefile for libU3D demo
 
 CXXSRCS := $(wildcard *.cpp)
+HDRS := $(wildcard *.hpp)
 CXXOBJS := $(CXXSRCS:%.cpp=%.o)
 OBJS := $(CXXOBJS)
 
@@ -23,7 +24,7 @@ clean:
 install: $(BIN)
 	install --mode=755 --target-directory=/usr/local/bin $<
 
-%.o: %.cpp
+%.o: %.cpp $(HDRS)
 	$(CXX) $(CXXFLAGS) -c -o $@ $<
 
 $(BIN): $(OBJS)

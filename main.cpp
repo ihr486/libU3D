@@ -487,8 +487,7 @@ class U3D
 public:
     U3D(const std::string& filename) : reader(filename)
     {
-        while(reader) {
-            reader.open_block();
+        while(reader.open_block()) {
             std::string name;
 
             switch(reader.get_type()) {

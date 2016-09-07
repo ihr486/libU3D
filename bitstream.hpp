@@ -10,7 +10,6 @@
 
 class BitStreamReader
 {
-    friend class StaticContext;
     friend class DynamicContext;
 
     std::ifstream ifs;
@@ -25,17 +24,13 @@ public:
             std::fprintf(stderr, "Failed to open: %s.\n", filename.c_str());
         }
     }
-    operator bool() const
-    {
-        return !ifs.eof();
-    }
     uint32_t read_word_direct()
     {
         uint32_t ret;
         ifs.read(reinterpret_cast<char *>(&ret), 4);
         return ret;
     }
-    void open_block()
+    bool open_block()
     {
         /*if(data_buffer.size() < 4) data_buffer.resize(4);
         ifs.read(reinterpret_cast<char *>(data_buffer.data()), 12);
@@ -45,6 +40,7 @@ public:
         uint32_t metadata_size = (read<uint32_t>() + 3) / 4;
         std::fprintf(stderr, "Block opened: %08X-%u/%u\n", type, data_size, metadata_size);*/
         type = read_word_direct();
+        if(ifs.eof()) return false;
         uint32_t data_size = (read_word_direct() + 3) / 4;
         uint32_t metadata_size = (read_word_direct() + 3) / 4;
         data_buffer.resize(data_size + 1);
@@ -54,27 +50,8 @@ public:
         data_buffer[data_size] = 0;
         metadata_buffer[metadata_size] = 0;
         bit_position = 0;
+        return true;
     }
-    /*template<typename T> typename std::enable_if<sizeof(T) <= 4 && std::is_integral<T>::value, T>::type read()
-    {
-        uint64_t buffer = ((uint64_t)data_buffer[bit_position / 32 + 1] << 32) | data_buffer[bit_position / 32];
-        T ret = static_cast<T>((buffer >> (bit_position % 32)) & (((uint64_t)1 << (8 * sizeof(T))) - 1));
-        bit_position += 8 * sizeof(T);
-        return ret;
-    }
-    template<typename T> typename std::enable_if<sizeof(T) == 8 && std::is_integral<T>::value, T>::type read()
-    {
-        return static_cast<T>(read<uint32_t>() | ((uint64_t)read<uint32_t>() << 32));
-    }
-    template<typename T> typename std::enable_if<sizeof(T) % 4 == 0 && !std::is_integral<T>::value && std::is_pod<T>::value, T>::type read()
-    {
-        T ret;
-        uint32_t *p = reinterpret_cast<uint32_t *>(&ret);
-        for(unsigned int i = 0; i < sizeof(T) / 4; i++) {
-            p[i] = read<uint32_t>();
-        }
-        return ret;
-    }*/
     template<typename T> T read()
     {
         T ret;
@@ -115,45 +92,6 @@ public:
         bit_position++;
         return ret;
     }
-    uint32_t peek_bits(unsigned int n)
-    {
-        uint64_t buffer = ((uint64_t)data_buffer[bit_position / 32 + 1] << 32) | data_buffer[bit_position / 32];
-        uint32_t ret = (buffer >> (bit_position % 32)) & (((uint64_t)1 << n) - 1);
-        return ret;
-    }
-    uint32_t peek_bit()
-    {
-        return (data_buffer[bit_position / 32] >> (bit_position % 32)) & 1;
-    }
-    /*BitStreamReader& operator>>(Vector3f& vec)
-    {
-        vec.x = read<float>(), vec.y = read<float>(), vec.z = read<float>();
-        return *this;
-    }
-    BitStreamReader& operator>>(Color3f& col)
-    {
-        col.r = read<float>(), col.g = read<float>(), col.b = read<float>();
-        return *this;
-    }
-    BitStreamReader& operator>>(Vector2f& vec)
-    {
-        vec.u = read<float>(), vec.v = read<float>();
-        return *this;
-    }
-    BitStreamReader& operator>>(Quaternion4f& q)
-    {
-        q.w = read<float>(), q.x = read<float>(), q.y = read<float>(), q.z = read<float>();
-        return *this;
-    }
-    BitStreamReader& operator>>(Matrix4f& mat)
-    {
-        for(int x = 0; x < 4; x++) {
-            for(int y = 0; y < 4; y++) {
-                mat.m[y][x] = read<float>();
-            }
-        }
-        return *this;
-    }*/
     std::string read_str()
     {
         std::string ret;
@@ -237,8 +175,7 @@ public:
             0x07, 0x87, 0x47, 0xC7, 0x27, 0xA7, 0x67, 0xE7, 0x17, 0x97, 0x57, 0xD7, 0x37, 0xB7, 0x77, 0xF7, 
             0x0F, 0x8F, 0x4F, 0xCF, 0x2F, 0xAF, 0x6F, 0xEF, 0x1F, 0x9F, 0x5F, 0xDF, 0x3F, 0xBF, 0x7F, 0xFF
         };
-        uint32_t symbol = read_static_symbol(256);
-        return bit_reverse_table[symbol - 1];
+        return bit_reverse_table[read_static_symbol(256) - 1];
     }
 };
 
