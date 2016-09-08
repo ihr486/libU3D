@@ -1,5 +1,7 @@
 #include "mesh.hpp"
 
+#include <algorithm>
+
 namespace U3D
 {
 
@@ -100,23 +102,32 @@ void CLOD_Mesh::update_resolution(BitStreamReader& reader)
             std::fprintf(stderr, "Invalid split position.\n");
             return;
         }*/
-        std::vector<Corner> split_corners;
-        std::vector<Face> split_faces;
+        std::vector<unsigned int> split_faces, local_positions;
         Color4f diffuse_average, specular_average;
         TexCoord4f texcoord_average;
         unsigned int color_match_count = 0;
         for(unsigned int j = 0; j < faces.size(); j++) {
             for(int k = 0; k < 3; k++) {
                 if(faces[j].corners[k].position == split_position) {
-                    split_corners.push_back(faces[j].corners[k]);
                     diffuse_average += diffuse_colors[faces[j].corners[k].diffuse];
                     specular_average += specular_colors[faces[j].corners[k].specular];
                     texcoord_average += texcoords[faces[j].corners[k].texcoord[0]];
-                    split_faces.push_back(faces[j]);
+                    split_faces.push_back(j);
+                    if(k != 0) local_positions.push_back(faces[j].corners[0].position);
+                    if(k != 1) local_positions.push_back(faces[j].corners[1].position);
+                    if(k != 2) local_positions.push_back(faces[j].corners[2].position);
                     color_match_count++;
                 }
             }
         }
+        local_positions.push_back(positions.size());    //New position is always share a face with split position
+        std::sort(local_positions.begin(), local_positions.end(), [](unsigned int a, unsigned int b) -> bool {return a > b;});
+        local_positions.erase(std::unique(local_positions.begin(), local_positions.end()), local_positions.end());
+        std::fprintf(stderr, "Local position table: ");
+        for(auto i : local_positions) {
+            std::fprintf(stderr, "%u ", i);
+        }
+        std::fprintf(stderr, "\n");
         if(color_match_count > 0) {
             diffuse_average /= color_match_count;
             specular_average /= color_match_count;
@@ -174,34 +185,86 @@ void CLOD_Mesh::update_resolution(BitStreamReader& reader)
             std::fprintf(stderr, "TexCoord [%f %f %f %f]\n", new_texcoords[j].u, new_texcoords[j].v, new_texcoords[j].s, new_texcoords[j].t);
         }
         uint32_t new_face_count = reader[ContextEnum::cFaceCnt].read<uint32_t>();
-        std::vector<Face> new_faces(new_face_count);
+        std::vector<NewFace> new_faces(new_face_count);
         std::fprintf(stderr, "Face Count = %u.\n", new_face_count);
         for(unsigned int j = 0; j < new_face_count; j++) {
+            new_faces[j].corners[0].position = split_position;
             new_faces[j].shading_id = reader[ContextEnum::cShading].read<uint32_t>();
             new_faces[j].ornt = reader[ContextEnum::cFaceOrnt].read<uint8_t>();
-            uint8_t third_pos_type = reader[ContextEnum::cThrdPosType].read<uint8_t>();
-            uint32_t third_pos;
-            if(third_pos_type == 1) {
-                third_pos = reader[ContextEnum::cLocal3rdPos].read<uint32_t>();
+            new_faces[j].third_pos_type = reader[ContextEnum::cThrdPosType].read<uint8_t>();
+            if(new_faces[j].third_pos_type == 1) {
+                new_faces[j].corners[2].position = local_positions[reader[ContextEnum::cLocal3rdPos].read<uint32_t>()];
             } else {
-                third_pos = reader[i].read<uint32_t>();
+                new_faces[j].corners[2].position = reader[i].read<uint32_t>();
             }
-            std::fprintf(stderr, "Shading ID = %u, Orientation = %u, 3rd pos = %u.\n", new_faces[j].shading_id, new_faces[j].ornt, third_pos);
+            std::fprintf(stderr, "Shading ID = %u, Orientation = %u, 3rd pos = %u.\n", new_faces[j].shading_id, new_faces[j].ornt, new_faces[j].corners[2].position);
+            local_positions.push_back(new_faces[j].corners[2].position);
+            std::sort(local_positions.begin(), local_positions.end(), [](unsigned int a, unsigned int b) -> bool {return a > b;});
+            local_positions.erase(std::unique(local_positions.begin(), local_positions.end()), local_positions.end());
+            std::fprintf(stderr, "Local position table: ");
+            for(auto i : local_positions) {
+                std::fprintf(stderr, "%u ", i);
+            }
+            std::fprintf(stderr, "\n");
         }
         for(unsigned int j = 0; j < new_face_count; j++) {
             if(shading_descs[new_faces[j].shading_id].attributes & 0x00000001) {
                 uint8_t diffuse_dup_flag = reader[ContextEnum::cColorDup].read<uint8_t>();
+                for(int k = 0; k < 3; k++) {
+                    if(!(diffuse_dup_flag & (1 << k))) {
+                        uint8_t index_type = reader[ContextEnum::cColorIndexType].read<uint8_t>();
+                        if(index_type == 2) {
+                            std::fprintf(stderr, "Local diffuse table referenced.\n");
+                            new_faces[j].corners[k].diffuse = reader[ContextEnum::cColorIndexLocal].read<uint32_t>();
+                        } else {
+                            new_faces[j].corners[k].diffuse = reader[ContextEnum::cColorIndexGlobal].read<uint32_t>();
+                        }
+                    } else {
+                        new_faces[j].corners[k].diffuse = last_corners[k].diffuse;
+                    }
+                    last_corners[k].diffuse = new_faces[j].corners[k].diffuse;
+                }
             }
             if(shading_descs[new_faces[j].shading_id].attributes & 0x00000002) {
+                uint8_t specular_dup_flag = reader[ContextEnum::cColorDup].read<uint8_t>();
+                for(int k = 0; k < 3; k++) {
+                    if(!(specular_dup_flag & (1 << k))) {
+                        uint8_t index_type = reader[ContextEnum::cColorIndexType].read<uint8_t>();
+                        if(index_type == 2) {
+                            std::fprintf(stderr, "Local specular table referenced.\n");
+                            new_faces[j].corners[k].specular = reader[ContextEnum::cColorIndexLocal].read<uint32_t>();
+                        } else {
+                            new_faces[j].corners[k].specular = reader[ContextEnum::cColorIndexGlobal].read<uint32_t>();
+                        }
+                    } else {
+                        new_faces[j].corners[k].specular = last_corners[k].specular;
+                    }
+                    last_corners[k].specular = new_faces[j].corners[k].specular;
+                }
             }
-            if(get_texlayer_count(new_faces[j].shading_id) > 0) {
+            for(unsigned int k = 0; k < get_texlayer_count(new_faces[j].shading_id); k++) {
+                uint8_t texcoord_dup_flag = reader[ContextEnum::cTexCDup].read<uint8_t>();
+                for(int l = 0; l < 3; l++) {
+                    if(!(texcoord_dup_flag & (1 << l))) {
+                        uint8_t index_type = reader[ContextEnum::cTexCIndexType].read<uint8_t>();
+                        if(index_type == 2) {
+                            std::fprintf(stderr, "Local texcoord table referenced.\n");
+                            new_faces[j].corners[l].texcoord[k] = reader[ContextEnum::cTextureIndexLocal].read<uint32_t>();
+                        } else {
+                            new_faces[j].corners[l].texcoord[k] = reader[ContextEnum::cTextureIndexGlobal].read<uint32_t>();
+                        }
+                    } else {
+                        new_faces[j].corners[l].texcoord[k] = last_corners[l].texcoord[k];
+                    }
+                    last_corners[l].texcoord[k] = new_faces[j].corners[l].texcoord[k];
+                }
             }
         }
         Vector3f new_position;
         if(split_position < positions.size()) {
             new_position = positions[split_position];
         }
-        std::fprintf(stderr, "Predicted Position [%f %f %f]\n", new_position.x, new_position.y, new_position.z);
+        //std::fprintf(stderr, "Predicted Position [%f %f %f]\n", new_position.x, new_position.y, new_position.z);
         uint8_t pos_sign = reader[ContextEnum::cPosDiffSign].read<uint8_t>();
         uint32_t pos_X = reader[ContextEnum::cPosDiffX].read<uint32_t>();
         uint32_t pos_Y = reader[ContextEnum::cPosDiffY].read<uint32_t>();
@@ -209,20 +272,11 @@ void CLOD_Mesh::update_resolution(BitStreamReader& reader)
         new_position.x += inverse_quant(pos_sign & 0x1, pos_X, position_iq);
         new_position.y += inverse_quant(pos_sign & 0x2, pos_Y, position_iq);
         new_position.z += inverse_quant(pos_sign & 0x4, pos_Z, position_iq);
-        std::fprintf(stderr, "New Position [%u %u %u]\n", pos_X, pos_Y, pos_Z);
+        //std::fprintf(stderr, "New Position [%u %u %u]\n", pos_X, pos_Y, pos_Z);
         std::fprintf(stderr, "New Position [%f %f %f]\n", new_position.x, new_position.y, new_position.z);
         positions.push_back(new_position);
-        /*if(!mesh.is_normals_excluded()) {
-          uint32_t new_normal_count = reader[ContextEnum::cNormalCnt].read<uint32_t>();
-          std::fprintf(stderr, "Normal Count = %u.\n", new_normal_count);
-          for(unsigned int j = 0; j < new_normal_count; j++) {
-          uint8_t normal_sign = reader[ContextEnum::cDiffNormalSign].read<uint8_t>();
-          uint32_t normal_X = reader[ContextEnum::cDiffNormalX].read<uint32_t>();
-          uint32_t normal_Y = reader[ContextEnum::cDiffNormalY].read<uint32_t>();
-          uint32_t normal_Z = reader[ContextEnum::cDiffNormalZ].read<uint32_t>();
-          }
-          }
-          return;*/
+        if(!(attributes & 0x00000001)) {
+        }
     }
     cur_res = end;
 }

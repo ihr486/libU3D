@@ -54,12 +54,18 @@ class CLOD_Mesh : public Modifier
     struct Face
     {
         uint32_t shading_id;
-        uint8_t ornt;
+        Corner corners[3];
+    };
+    struct NewFace
+    {
+        uint32_t shading_id;
+        uint8_t ornt, third_pos_type;
         Corner corners[3];
     };
     std::vector<Face> faces;
     //Resolution update status
     uint32_t cur_res;
+    Corner last_corners[3];
 public:
     CLOD_Mesh(BitStreamReader& reader);
     uint32_t get_texlayer_count(uint32_t shading_id) const
