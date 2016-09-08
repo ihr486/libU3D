@@ -54,6 +54,7 @@ class CLOD_Mesh : public Modifier
     struct Face
     {
         uint32_t shading_id;
+        uint8_t ornt;
         Corner corners[3];
     };
     std::vector<Face> faces;

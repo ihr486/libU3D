@@ -6,16 +6,19 @@ namespace U3D
 template<typename T> struct Vector3
 {
     T x, y, z;
+    Vector3() : x(0), y(0), z(0) {}
 };
 
 template<typename T> struct Vector2
 {
     T u, v;
+    Vector2() : u(0), v(0) {}
 };
 
 template<typename T> struct Color3
 {
     T r, g, b;
+    Color3() : r(0), g(0), b(0) {}
 };
 
 template<typename T> struct Color4
@@ -29,6 +32,7 @@ template<typename T> struct Color4
         r /= val, g /= val, b /= val, a /= val;
         return *this;
     }
+    Color4() : r(0), g(0), b(0), a(0) {}
 };
 
 template<typename T> struct Matrix4
@@ -44,6 +48,15 @@ template<typename T> struct Quaternion4
 template<typename T> struct TexCoord4
 {
     T u, v, s, t;
+    TexCoord4<T>& operator+=(const TexCoord4<T>& c) {
+        u += c.u, v += c.v, s += c.s, t += c.t;
+        return *this;
+    }
+    TexCoord4<T>& operator/=(T val) {
+        u /= val, v /= val, s /= val, t /= val;
+        return *this;
+    }
+    TexCoord4() : u(0), v(0), s(0), t(0) {}
 };
 
 using Vector3f = Vector3<float>;
@@ -63,7 +76,7 @@ public:
 
 static inline float inverse_quant(bool sign, uint32_t val, float iq)
 {
-    return sign ? -val * iq : val * iq;
+    return sign ? -iq * val : iq * val;
 }
 
 }

@@ -14,7 +14,8 @@ namespace U3D
 enum struct ContextEnum {
     cZero = 0, cShading, cDiffuseCount, cDiffuseColorSign, cColorDiffR, cColorDiffG, cColorDiffB, cColorDiffA, cSpecularCount,
     cSpecularColorSign, cTexCoordCount, cTexCoordSign, cTexCDiffU, cTexCDiffV, cTexCDiffS, cTexCDiffT, cFaceCnt, cFaceOrnt,
-    cThrdPosType, cLocal3rdPos, cStayMove, cDiffuseKeepChange, cDiffuseChangeType, cDiffuseChangeIndexNew, cDiffuseChangeIndexLocal,
+    cThrdPosType, cLocal3rdPos, cStayMove0, cStayMove1, cStayMove2, cStayMove3, cStayMove4, cDiffuseKeepChange, cDiffuseChangeType,
+    cDiffuseChangeIndexNew, cDiffuseChangeIndexLocal,
     cDiffuseChangeIndexGlobal, cSpecularKeepChange, cSpecularChangeType, cSpecularChangeIndexNew, cSpecularChangeIndexLocal,
     cSpecularChangeIndexGlobal, cTCKeepChange, cTCChangeType, cTCChangeIndexNew, cTCChangeIndexLocal, cTCChangeIndexGlobal,
     cColorDup, cColorIndexType, cColorIndexLocal, cColorIndexGlobal, cTexCDup, cTexCIndexType, cTextureIndexLocal,
@@ -119,7 +120,7 @@ public:
         uint32_t data_size = (read<uint32_t>() + 3) / 4;
         uint32_t metadata_size = (read<uint32_t>() + 3) / 4;
         std::fprintf(stderr, "Block opened: %08X-%u/%u\n", type, data_size, metadata_size);*/
-    template<typename T> typename std::enable_if<std::is_pod<T>::value, T>::type read()
+    template<typename T> T read()
     {
         T ret;
         uint8_t *p = reinterpret_cast<uint8_t *>(&ret);
