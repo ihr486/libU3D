@@ -312,7 +312,9 @@ public:
             }
         }
     }
-    virtual ~ModifierChain() {}
+    virtual ~ModifierChain() {
+        for(auto p : *this) delete p;
+    }
 };
 
 class LitTextureShader
@@ -576,6 +578,13 @@ public:
         }
     }
     ~U3DContext() {
+        for(auto p : models) delete p.second;
+        for(auto p : lights) delete p.second;
+        for(auto p : views) delete p.second;
+        for(auto p : textures) delete p.second;
+        for(auto p : shaders) delete p.second;
+        for(auto p : materials) delete p.second;
+        for(auto p : nodes) delete p.second;
     }
 };
 

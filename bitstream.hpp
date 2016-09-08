@@ -13,16 +13,14 @@ namespace U3D
 
 class BitStreamReader
 {
-    static constexpr uint32_t StaticFull = 1024;
-
+    enum {
+        cShading = 0, cDiffuseCount, cDiffuseColorSign, cColorDiffR, cColorDiffG, cColorDiffB, cZero, StaticFull
+    };
     class DynamicContext
     {
         std::vector<uint16_t> symbol_count;
         uint16_t total_symbol_count;
     public:
-        enum {
-            cShading = 1, cDiffuseCount, cDiffuseColorSign, cColorDiffR, cColorDiffG, cColorDiffB
-        };
         DynamicContext() : symbol_count(256, 0), total_symbol_count(1)
         {
             symbol_count[0] = 1;
