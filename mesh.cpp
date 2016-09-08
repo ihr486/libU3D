@@ -198,9 +198,10 @@ void CLOD_Mesh::update_resolution(BitStreamReader& reader)
                 new_faces[j].corners[2].position = reader[i].read<uint32_t>();
             }
             std::fprintf(stderr, "Shading ID = %u, Orientation = %u, 3rd pos = %u.\n", new_faces[j].shading_id, new_faces[j].ornt, new_faces[j].corners[2].position);
-            local_positions.push_back(new_faces[j].corners[2].position);
-            std::sort(local_positions.begin(), local_positions.end(), [](unsigned int a, unsigned int b) -> bool {return a > b;});
-            local_positions.erase(std::unique(local_positions.begin(), local_positions.end()), local_positions.end());
+            uint32_t third_pos = new_faces[j].corners[2].position;
+            insert_unique(local_positions, third_pos);
+            /*std::sort(local_positions.begin(), local_positions.end(), [](unsigned int a, unsigned int b) -> bool {return a > b;});
+            local_positions.erase(std::unique(local_positions.begin(), local_positions.end()), local_positions.end());*/
             std::fprintf(stderr, "Local position table: ");
             for(auto i : local_positions) {
                 std::fprintf(stderr, "%u ", i);
