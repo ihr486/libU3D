@@ -1,9 +1,18 @@
-Block implementation status
---------
-*Structure blocks
-**File Header Block (0x00443355)
-**File Reference Block (0xFFFFFF12)
-**Modifier Chain Block (0xFFFFFF14)
-**Priority Update Block (0xFFFFFF15)
-**New Object Type Block (0xFFFFFF16)
-*Node blocks
+libU3D
+========
+libU3D is a Universal 3D parsing library focused on readability and simplicity.
+It is intended to be embedded into PDF viewers with OpenGL frontend.
+# Major design decisions and limitations
+## CLOD mesh generator
+CLOD (Continuous Level of Detail) is disabled.
+All meshes are thus always rendered at their maximum resolution.
+This design decision was made because models that appear in 3DPDF files
+are typically not so heavy as to require different levels of detail.
+Absence of CLOD functionality speeds up decoding and reduces memory comsumption.
+## TIFF support for texture images
+# Implementation status
+Implementation is not complete.
+## CLOD mesh generator
+## Texture
+## Animation
+## Subdivision

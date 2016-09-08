@@ -241,6 +241,14 @@ public:
     {
         return maxmesh.shading_descs[shading_id].texcoord_dims.size();
     }
+    bool is_diffuse_color_present(uint32_t shading_id) const
+    {
+        return maxmesh.shading_descs[shading_id].attributes & 0x00000001;
+    }
+    bool is_specular_color_present(uint32_t shading_id) const
+    {
+        return maxmesh.shading_descs[shading_id].attributes & 0x00000002;
+    }
     bool is_normals_excluded() const
     {
         return maxmesh.attributes & 0x00000001;
@@ -578,6 +586,14 @@ public:
                     third_pos = reader[i].read<uint32_t>();
                 }
                 std::fprintf(stderr, "Shading ID = %u, Orientation = %u, 3rd pos = %u.\n", shading_id, face_ornt, third_pos);
+            }
+            for(unsigned int j = 0; j < new_face_count; j++) {
+                if(mesh.is_diffuse_color_present(shading_id)) {
+                }
+                if(mesh.is_specular_color_present(shading_id)) {
+                }
+                if(mesh.get_texlayer_count(shading_id) > 0) {
+                }
             }
             uint8_t pos_sign = reader[ContextEnum::cPosDiffSign].read<uint8_t>();
             uint32_t pos_X = reader[ContextEnum::cPosDiffX].read<uint32_t>();
