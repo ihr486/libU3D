@@ -12,7 +12,7 @@ namespace U3D
 {
 
 enum struct ContextEnum {
-    cZero = 0, cShading, cDiffuseCount, cDiffuseColorSign, cColorDiffR, cColorDiffG, cColorDiffB, NumContexts
+    cZero = 0, cShadingID, cDiffuseCount, cDiffuseColorSign, cColorDiffR, cColorDiffG, cColorDiffB, NumContexts
 };
 
 class BitStreamReader
@@ -61,10 +61,10 @@ class BitStreamReader
             uint32_t cum_freq = 0;
             uint32_t symbol = 0;
             for(; symbol < symbol_count.size(); symbol++) {
-                cum_freq += symbol_count[symbol];
-                if(cum_freq > frequency) {
+                if(cum_freq + symbol_count[symbol] > frequency) {
                     break;
                 }
+                cum_freq += symbol_count[symbol];
             }
             return std::make_pair(symbol, cum_freq);
         }
@@ -162,7 +162,9 @@ public:
     uint32_t read_dynamic_symbol(uint32_t context);
     uint32_t read_byte()
     {
-        return bit_reverse_table[read_static_symbol(256) - 1];
+        uint32_t symbol = read_static_symbol(256);
+        std::fprintf(stderr, "Symbol = %u.\n", symbol);
+        return bit_reverse_table[symbol - 1];
     }
     class ContextAdapter
     {
@@ -173,6 +175,7 @@ public:
         template<typename T> T read()
         {
             if(context < 0x3FFF) {
+                std::fprintf(stderr, "Reading from static context %u...\n", context);
                 uint32_t symbol = reader.read_static_symbol(context);
                 if(symbol == 0) {
                     return reader.read<T>();
@@ -180,10 +183,11 @@ public:
                     return static_cast<T>(symbol - 1);
                 }
             } else {
+                std::fprintf(stderr, "Reading from dynamic context %u...\n", context - 0x4000);
                 uint32_t symbol = reader.read_dynamic_symbol(context - 0x4000);
                 if(symbol == 0) {
                     T value = reader.read<T>();
-                    reader.dynamic_contexts[context - 0x4000].add_symbol(static_cast<uint32_t>(value) - 1);
+                    reader.dynamic_contexts[context - 0x4000].add_symbol(static_cast<uint32_t>(value) + 1);
                     return value;
                 } else {
                     return static_cast<T>(symbol - 1);

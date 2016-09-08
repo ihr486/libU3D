@@ -237,6 +237,10 @@ public:
             }
         }
     }
+    uint32_t get_texlayer_count(uint32_t shading_id) const
+    {
+        return maxmesh.shading_descs[shading_id].texcoord_dims.size();
+    }
 };
 
 class CLOD_Modifier : public Modifier
@@ -460,9 +464,50 @@ public:
 
 class CLOD_BaseMesh
 {
-public:
-    CLOD_BaseMesh(BitStreamReader& reader)
+    std::vector<Vector3f> positions, normals;
+    std::vector<Color4f> diffuse_colors, specular_colors;
+    std::vector<TexCoord4f> texcoords;
+    struct Corner
     {
+        uint32_t position, normal;
+        uint32_t diffuse, specular, texcoord[8];
+    };
+    struct Face
+    {
+        uint32_t shading_id;
+        Corner corners[3];
+    };
+    std::vector<Face> faces;
+public:
+    CLOD_BaseMesh(BitStreamReader& reader, const CLOD_Mesh& mesh)
+    {
+        uint32_t face_count, position_count, normal_count;
+        uint32_t diffuse_count, specular_count, texcoord_count;
+        reader.read<uint32_t>();    //Chain index is always zero.
+        reader >> face_count >> position_count >> normal_count >> diffuse_count >> specular_count >> texcoord_count;
+        positions.resize(position_count);
+        for(unsigned int i = 0; i < position_count; i++) reader >> positions[i];
+        normals.resize(normal_count);
+        for(unsigned int i = 0; i < normal_count; i++) reader >> normals[i];
+        diffuse_colors.resize(diffuse_count);
+        for(unsigned int i = 0; i < diffuse_count; i++) reader >> diffuse_colors[i];
+        specular_colors.resize(specular_count);
+        for(unsigned int i = 0; i < specular_count; i++) reader >> specular_colors[i];
+        texcoords.resize(texcoord_count);
+        for(unsigned int i = 0; i < texcoord_count; i++) reader >> texcoords[i];
+        faces.resize(face_count);
+        for(unsigned int i = 0; i < face_count; i++) {
+            reader[ContextEnum::cShadingID] >> faces[i].shading_id;
+            for(int j = 0; j < 3; j++) {
+                reader[position_count] >> faces[i].corners[j].position;
+                reader[normal_count] >> faces[i].corners[j].normal;
+                reader[diffuse_count] >> faces[i].corners[j].diffuse;
+                reader[specular_count] >> faces[i].corners[j].specular;
+                for(int k = 0; k < mesh.get_texlayer_count(faces[i].shading_id); k++) {
+                    reader[texcoord_count] >> faces[i].corners[j].texcoord[k];
+                }
+            }
+        }
     }
 };
 
@@ -470,10 +515,20 @@ class CLOD_ProgressiveMesh
 {
     uint32_t start, end;
 public:
-    CLOD_ProgressiveMesh(BitStreamReader& reader)
+    CLOD_ProgressiveMesh(BitStreamReader& reader, const CLOD_Mesh& mesh)
     {
         reader.read<uint32_t>();    //Chain index is always zero.
         reader >> start >> end;
+        for(unsigned int i = start; i < end; i++) {
+            std::fprintf(stderr, "Resolution update %u\n", i);
+            uint32_t split_position;
+            if(i == 0) {
+                reader[ContextEnum::cZero] >> split_position;
+            } else {
+                reader[i] >> split_position;
+            }
+            std::fprintf(stderr, "Split Position = %u.\n", split_position);
+        }
     }
 };
 
@@ -548,23 +603,27 @@ public:
             case 0xFFFFFF56:    //Motion Declaration
                 break;
             /*case 0xFFFFFF5C:    //Texture Continuation
-                break;
-            case 0xFFFFFF3B:    //CLOD Base Mesh Continuation
                 break;*/
+            case 0xFFFFFF3B:    //CLOD Base Mesh Continuation
+                name = reader.read_str();
+                if(models[name] != nullptr) {
+                    CLOD_Mesh *decl = dynamic_cast<CLOD_Mesh *>(models[name]->front());
+                    if(decl != nullptr) {
+                        //decl->register_base(new CLOD_BaseMesh(reader, decl));
+                        new CLOD_BaseMesh(reader, *decl);
+                        std::fprintf(stderr, "CLOD Base Mesh Continuation \"%s\"\n", name.c_str());
+                    }
+                }
+                break;
             case 0xFFFFFF3C:    //CLOD Progressive Mesh Continuation
                 name = reader.read_str();
                 if(models[name] != nullptr) {
                     CLOD_Mesh *decl = dynamic_cast<CLOD_Mesh *>(models[name]->front());
                     if(decl != nullptr) {
-                        new CLOD_ProgressiveMesh(reader);
+                        //decl->register_update(new CLOD_ProgressiveMesh(reader, decl));
+                        new CLOD_ProgressiveMesh(reader, *decl);
                         std::fprintf(stderr, "CLOD Progressive Mesh Continuation \"%s\"\n", name.c_str());
-                    } else {
-                        std::fprintf(stderr, "CLOD Progressive Mesh Continuation \"%s\" is not tied to its parent.\n", name.c_str());
-                        return;
                     }
-                } else {
-                    std::fprintf(stderr, "CLOD Progressive Mesh Continuation \"%s\" is not declared.\n", name.c_str());
-                    return;
                 }
                 break;
             default:

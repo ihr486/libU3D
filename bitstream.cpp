@@ -91,6 +91,8 @@ uint32_t BitStreamReader::read_dynamic_symbol(uint32_t context)
     code |= (bit_reverse_table[temp & 0xFF] << 7) | (bit_reverse_table[temp >> 8] >> 1);
     bit_position = checkpoint;
 
+    std::fprintf(stderr, "Code = %u.\n", code);
+
     uint32_t range = high + 1 - low;
     uint32_t total_freq = dynamic_contexts[context].get_total_symbol_frequency();
     uint32_t cum_freq = (total_freq * (1 + code - low) - 1) / range;
@@ -98,6 +100,8 @@ uint32_t BitStreamReader::read_dynamic_symbol(uint32_t context)
     uint32_t symbol = lookup_result.first;
     uint32_t val_cum_freq = lookup_result.second;
     uint32_t val_freq = dynamic_contexts[context].get_symbol_frequency(symbol);
+
+    std::fprintf(stderr, "Freq = %u, Cum = %u.\n", val_freq, val_cum_freq);
 
     high = low - 1 + range * (val_cum_freq + val_freq) / total_freq;
     low = low + range * val_cum_freq / total_freq;
@@ -120,6 +124,7 @@ uint32_t BitStreamReader::read_dynamic_symbol(uint32_t context)
         underflow++;
     }
     bit_position += bit_count;
+    std::fprintf(stderr, "Symbol = %u.\n", symbol);
     return symbol;
 }
 
