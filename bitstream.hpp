@@ -11,11 +11,12 @@
 namespace U3D
 {
 
+enum struct ContextEnum {
+    cZero = 0, cShading, cDiffuseCount, cDiffuseColorSign, cColorDiffR, cColorDiffG, cColorDiffB, NumContexts
+};
+
 class BitStreamReader
 {
-    enum {
-        cShading = 0, cDiffuseCount, cDiffuseColorSign, cColorDiffR, cColorDiffG, cColorDiffB, cZero, StaticFull
-    };
     class DynamicContext
     {
         std::vector<uint16_t> symbol_count;
@@ -51,9 +52,6 @@ class BitStreamReader
                 return symbol_count[symbol];
             }
         }
-        /*uint32_t get_cumulative_symbol_frequency(uint32_t symbol) const
-        {
-        }*/
         uint32_t get_total_symbol_frequency() const
         {
             return total_symbol_count;
@@ -96,7 +94,7 @@ private:
     uint32_t high, low, underflow, type;
     std::vector<uint32_t> data_buffer, metadata_buffer;
     static const uint8_t bit_reverse_table[256];
-    std::array<DynamicContext, StaticFull> dynamic_contexts;
+    std::array<DynamicContext, static_cast<int>(ContextEnum::NumContexts)> dynamic_contexts;
 private:
     uint32_t read_word_direct()
     {
@@ -172,13 +170,25 @@ public:
         uint32_t context;
     public:
         ContextAdapter(BitStreamReader& reader, uint32_t context) : reader(reader), context(context) {}
-        template<typename T> typename std::enable_if<std::is_pod<T>::value, T>::type read()
+        template<typename T> T read()
         {
-            T ret;
             if(context < 0x3FFF) {
-
+                uint32_t symbol = reader.read_static_symbol(context);
+                if(symbol == 0) {
+                    return reader.read<T>();
+                } else {
+                    return static_cast<T>(symbol - 1);
+                }
+            } else {
+                uint32_t symbol = reader.read_dynamic_symbol(context - 0x4000);
+                if(symbol == 0) {
+                    T value = reader.read<T>();
+                    reader.dynamic_contexts[context - 0x4000].add_symbol(static_cast<uint32_t>(value) - 1);
+                    return value;
+                } else {
+                    return static_cast<T>(symbol - 1);
+                }
             }
-            return ret;
         }
         template<typename T> ContextAdapter& operator>>(T& val)
         {
@@ -186,12 +196,19 @@ public:
             return *this;
         }
     };
-
     ContextAdapter operator[](uint32_t context)
     {
-        return ContextAdapter(*this, context);
+        if(context < 0x3FFF) {
+            return ContextAdapter(*this, context);
+        } else {
+            std::fprintf(stderr, "Invalid static context: R = %u.\n", context);
+            return ContextAdapter(*this, 256);
+        }
+    }
+    ContextAdapter operator[](ContextEnum context)
+    {
+        return ContextAdapter(*this, static_cast<uint32_t>(context) + 0x4000);
     }
 };
-
 
 }
