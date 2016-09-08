@@ -5,17 +5,17 @@ namespace U3D
 
 CLOD_Mesh::CLOD_Mesh(BitStreamReader& reader)
 {
-    reader >> chain_index;
-    reader >> maxmesh.attributes >> maxmesh.face_count >> maxmesh.position_count >> maxmesh.normal_count;
-    reader >> maxmesh.diffuse_count >> maxmesh.specular_count >> maxmesh.texcoord_count;
+    reader.read<uint32_t>();    //Chain index is always zero.
+    reader >> attributes >> face_count >> position_count >> normal_count;
+    reader >> diffuse_count >> specular_count >> texcoord_count;
     uint32_t shading_count = reader.read<uint32_t>();
-    maxmesh.shading_descs.resize(shading_count);
+    shading_descs.resize(shading_count);
     for(unsigned int i = 0; i < shading_count; i++) {
-        maxmesh.shading_descs[i].attributes = reader.read<uint32_t>();
+        shading_descs[i].attributes = reader.read<uint32_t>();
         uint32_t texlayer_count = reader.read<uint32_t>();
-        maxmesh.shading_descs[i].texcoord_dims.resize(texlayer_count);
+        shading_descs[i].texcoord_dims.resize(texlayer_count);
         for(unsigned int j = 0; j < texlayer_count; j++) {
-            maxmesh.shading_descs[i].texcoord_dims[j] = reader.read<uint32_t>();
+            shading_descs[i].texcoord_dims[j] = reader.read<uint32_t>();
         }
         reader.read<uint32_t>();
     }
@@ -96,7 +96,31 @@ void CLOD_Mesh::update_resolution(BitStreamReader& reader)
             reader[i] >> split_position;
         }
         std::fprintf(stderr, "Split Position = %u.\n", split_position);
+        /*if(split_position >= positions.size()) {
+            std::fprintf(stderr, "Invalid split position.\n");
+            return;
+        }*/
+        std::vector<Corner> split_corners;
+        std::vector<Face> split_faces;
+        Color4f diffuse_average, specular_average;
+        unsigned int color_match_count = 0;
+        for(unsigned int j = 0; j < faces.size(); j++) {
+            for(int k = 0; k < 3; k++) {
+                if(faces[j].corners[k].position == split_position) {
+                    split_corners.push_back(faces[j].corners[k]);
+                    diffuse_average += diffuse_colors[faces[j].corners[k].diffuse];
+                    specular_average += specular_colors[faces[j].corners[k].specular];
+                    split_faces.push_back(faces[j]);
+                    color_match_count++;
+                }
+            }
+        }
+        if(color_match_count > 0) {
+            diffuse_average /= color_match_count;
+            specular_average /= color_match_count;
+        }
         uint16_t new_diffuse_count = reader[ContextEnum::cDiffuseCount].read<uint16_t>();
+        std::vector<Color4f> new_diffuse_colors(new_diffuse_count, diffuse_average);
         std::fprintf(stderr, "Diffuse Count = %u.\n", new_diffuse_count);
         for(unsigned int j = 0; j < new_diffuse_count; j++) {
             uint8_t diffuse_sign = reader[ContextEnum::cDiffuseColorSign].read<uint8_t>();
@@ -105,9 +129,15 @@ void CLOD_Mesh::update_resolution(BitStreamReader& reader)
             uint32_t diffuse_blue = reader[ContextEnum::cColorDiffB].read<uint32_t>();
             uint32_t diffuse_alpha = reader[ContextEnum::cColorDiffA].read<uint32_t>();
 
-            std::fprintf(stderr, "%u %u %u %u %u\n", diffuse_sign, diffuse_red, diffuse_green, diffuse_blue, diffuse_alpha);
+            new_diffuse_colors[j].r += inverse_quant(diffuse_sign & 0x1, diffuse_red, diffuse_iq);
+            new_diffuse_colors[j].g += inverse_quant(diffuse_sign & 0x2, diffuse_green, diffuse_iq);
+            new_diffuse_colors[j].b += inverse_quant(diffuse_sign & 0x4, diffuse_blue, diffuse_iq);
+            new_diffuse_colors[j].a += inverse_quant(diffuse_sign & 0x8, diffuse_alpha, diffuse_iq);
+
+            std::fprintf(stderr, "Diffuse [%f %f %f %f]\n", new_diffuse_colors[j].r, new_diffuse_colors[j].g, new_diffuse_colors[j].b, new_diffuse_colors[j].a);
         }
         uint16_t new_specular_count = reader[ContextEnum::cSpecularCount].read<uint16_t>();
+        std::vector<Color4f> new_specular_colors(new_specular_count, specular_average);
         std::fprintf(stderr, "Specular Count = %u.\n", new_specular_count);
         for(unsigned int j = 0; j < new_diffuse_count; j++) {
             uint8_t specular_sign = reader[ContextEnum::cSpecularColorSign].read<uint8_t>();
@@ -116,7 +146,12 @@ void CLOD_Mesh::update_resolution(BitStreamReader& reader)
             uint32_t specular_blue = reader[ContextEnum::cColorDiffB].read<uint32_t>();
             uint32_t specular_alpha = reader[ContextEnum::cColorDiffA].read<uint32_t>();
 
-            std::fprintf(stderr, "%u %u %u %u %u\n", specular_sign, specular_red, specular_green, specular_blue, specular_alpha);
+            new_specular_colors[j].r += inverse_quant(specular_sign & 0x1, specular_red, specular_iq);
+            new_specular_colors[j].g += inverse_quant(specular_sign & 0x2, specular_green, specular_iq);
+            new_specular_colors[j].b += inverse_quant(specular_sign & 0x4, specular_blue, specular_iq);
+            new_specular_colors[j].a += inverse_quant(specular_sign & 0x8, specular_alpha, specular_iq);
+
+            std::fprintf(stderr, "Specular [%f %f %f %f]\n", new_specular_colors[j].r, new_specular_colors[j].g, new_specular_colors[j].b, new_specular_colors[j].a);
         }
         uint16_t new_texcoord_count = reader[ContextEnum::cTexCoordCount].read<uint16_t>();
         std::fprintf(stderr, "TexCoord Count = %u.\n", new_texcoord_count);

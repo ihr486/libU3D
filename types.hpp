@@ -21,6 +21,14 @@ template<typename T> struct Color3
 template<typename T> struct Color4
 {
     T r, g, b, a;
+    Color4<T>& operator+=(const Color4<T>& c) {
+        r += c.r, g += c.g, b += c.b, a += c.a;
+        return *this;
+    }
+    Color4<T>& operator/=(T val) {
+        r /= val, g /= val, b /= val, a /= val;
+        return *this;
+    }
 };
 
 template<typename T> struct Matrix4
@@ -52,5 +60,10 @@ public:
     Modifier() {}
     virtual ~Modifier() {}
 };
+
+static inline float inverse_quant(bool sign, uint32_t val, float iq)
+{
+    return sign ? -val * iq : val * iq;
+}
 
 }
