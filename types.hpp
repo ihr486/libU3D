@@ -46,4 +46,11 @@ using Vector2f = Vector2<float>;
 using Color4f = Color4<float>;
 using TexCoord4f = TexCoord4<float>;
 
+class Modifier
+{
+public:
+    Modifier() {}
+    virtual ~Modifier() {}
+};
+
 }
