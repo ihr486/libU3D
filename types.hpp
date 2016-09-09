@@ -10,7 +10,23 @@ template<typename T> struct Vector3
 {
     T x, y, z;
     Vector3() : x(0), y(0), z(0) {}
+    T operator*(const Vector3<T>& v) {
+        return x * v.x + y * v.y + z * v.z;
+    }
+    Vector3<T> operator*(T a) {
+        return Vector3<T>{a * x, a * y, a * z};
+    }
+    Vector3<T> operator+(const Vector3<T>& v) {
+        return Vector3<T>{x + v.x, y + v.y, z + v.z};
+    }
 };
+
+template<typename T> static inline Vector3<T> slerp(const Vector3<T>& a, const Vector3<T>& b, T t)
+{
+    T omega = acos(a * b);
+    if(omega == 0) return a;
+    return sin(t * omega) / sin(omega) * a + sin((1 - t) * omega) / sin(omega) * b;
+}
 
 template<typename T> struct Vector2
 {

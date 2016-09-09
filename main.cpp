@@ -205,6 +205,7 @@ public:
                 std::fprintf(stderr, "\tCLOD Mesh \"%s\"\n", name.c_str());
                 break;
             case 0xFFFFFF36:    //Point Set Declaration
+            case 0xFFFFFF37:    //Line Set Declaration
             case 0xFFFFFF41:    //2D Glyph Modifier Block
             case 0xFFFFFF42:    //Subdivision Modifier Block
             case 0xFFFFFF43:    //Animation Modifier Block
@@ -439,10 +440,10 @@ public:
                 textures[name] = new Texture(reader);
                 std::fprintf(stderr, "Texture Resource \"%s\"\n", name.c_str());
                 break;
-            /*case 0xFFFFFF56:    //Motion Declaration
+            case 0xFFFFFF56:    //Motion Declaration
                 break;
             case 0xFFFFFF5C:    //Texture Continuation
-                break;*/
+                break;
             case 0xFFFFFF3B:    //CLOD Base Mesh Continuation
                 name = reader.read_str();
                 if(models[name] != nullptr) {
