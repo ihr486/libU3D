@@ -310,7 +310,10 @@ void CLOD_Mesh::update_resolution(BitStreamReader& reader)
                     face.corners[k].position = positions.size();
                 }
             }
+            indexer.move_position(move_faces[j], split_position, positions.size());
         }
+        split_faces = indexer.list_faces(split_position);
+        std::sort(split_faces.begin(), split_faces.end(), std::greater<uint32_t>());
         std::vector<uint32_t> split_diffuse_colors, split_specular_colors, split_texcoords[8];
         for(unsigned int j = 0; j < split_faces.size(); j++) {
             Face& face = faces[split_faces[j]];

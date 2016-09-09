@@ -109,6 +109,10 @@ class CLOD_Mesh : public Modifier
                 return positions[position];
             }
         }
+        void move_position(uint32_t face, uint32_t position, uint32_t new_position) {
+            positions[position].erase(std::remove(positions[position].begin(), positions[position].end(), face), positions[position].end());
+            positions[new_position].push_back(face);
+        }
         static int check_edge(const Face& face, uint32_t pos1, uint32_t pos2) {
             if(face.corners[0].position == pos1) {
                 if(face.corners[1].position == pos2) {
