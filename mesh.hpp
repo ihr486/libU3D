@@ -55,6 +55,9 @@ class CLOD_Mesh : public Modifier
     {
         uint32_t shading_id;
         Corner corners[3];
+        Corner& get_corner(uint32_t p) {
+            return corners[2].position == p ? corners[2] : (corners[1].position == p ? corners[1] : corners[0]);
+        }
     };
     struct NewFace
     {

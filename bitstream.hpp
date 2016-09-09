@@ -171,7 +171,6 @@ public:
     uint32_t read_byte()
     {
         uint32_t symbol = read_static_symbol(256);
-        //std::fprintf(stderr, "Symbol = %u.\n", symbol);
         return bit_reverse_table[symbol - 1];
     }
     class ContextAdapter
@@ -183,7 +182,6 @@ public:
         template<typename T> T read()
         {
             if(context < 0x3FFF) {
-                //std::fprintf(stderr, "Reading from static context %u...\n", context);
                 uint32_t symbol = reader.read_static_symbol(context);
                 if(symbol == 0) {
                     return reader.read<T>();
@@ -191,7 +189,6 @@ public:
                     return static_cast<T>(symbol - 1);
                 }
             } else {
-                //std::fprintf(stderr, "Reading from dynamic context %u...\n", context - 0x4000);
                 uint32_t symbol = reader.read_dynamic_symbol(context - 0x4000);
                 if(symbol == 0) {
                     T value = reader.read<T>();
@@ -213,7 +210,6 @@ public:
         if(context < 0x3FFF) {
             return ContextAdapter(*this, context);
         } else {
-            std::fprintf(stderr, "Invalid static context: R = %u.\n", context);
             return ContextAdapter(*this, 256);
         }
     }

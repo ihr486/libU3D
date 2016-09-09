@@ -110,21 +110,18 @@ void CLOD_Mesh::update_resolution(BitStreamReader& reader)
         std::vector<uint32_t> split_faces = indexer.list_faces(split_position), local_positions;
         for(unsigned int j = 0; j < split_faces.size(); j++) {
             Face& face = faces[split_faces[j]];
-            for(int k = 0; k < 3; k++) {
-                if(face.corners[k].position == split_position) {
-                    uint32_t shading_attr = shading_descs[face.shading_id].attributes;
-                    if(shading_attr & 0x00000001) {
-                        diffuse_average += diffuse_colors[face.corners[k].diffuse];
-                    }
-                    if(shading_attr & 0x00000002) {
-                        specular_average += specular_colors[face.corners[k].specular];
-                    }
-                    if(get_texlayer_count(face.shading_id) > 0) {
-                        texcoord_average += texcoords[face.corners[k].texcoord[0]];
-                    }
-                    color_match_count++;
-                }
+            Corner& corner = face.get_corner(split_position);
+            uint32_t shading_attr = shading_descs[face.shading_id].attributes;
+            if(shading_attr & 0x00000001) {
+                diffuse_average += diffuse_colors[corner.diffuse];
             }
+            if(shading_attr & 0x00000002) {
+                specular_average += specular_colors[corner.specular];
+            }
+            if(get_texlayer_count(face.shading_id) > 0) {
+                texcoord_average += texcoords[corner.texcoord[0]];
+            }
+            color_match_count++;
             if(face.corners[0].position != split_position) local_positions.push_back(face.corners[0].position);
             if(face.corners[1].position != split_position) local_positions.push_back(face.corners[1].position);
             if(face.corners[2].position != split_position) local_positions.push_back(face.corners[2].position);
@@ -266,6 +263,7 @@ void CLOD_Mesh::update_resolution(BitStreamReader& reader)
         std::fprintf(stderr, "%u faces moved.\n", move_faces.size());
         for(unsigned int j = 0; j < move_faces.size(); j++) {
             Face& face = faces[move_faces[j]];
+            Corner& corner = face.get_corner(split_position);
             if(shading_descs[face.shading_id].attributes & 0x00000001) {
                 uint8_t keep_change = reader[cDiffuseKeepChange].read<uint8_t>();
                 if(keep_change == 0x1) {
@@ -305,11 +303,7 @@ void CLOD_Mesh::update_resolution(BitStreamReader& reader)
                     }
                 }
             }
-            for(int k = 0; k < 3; k++) {
-                if(face.corners[k].position == split_position) {
-                    face.corners[k].position = positions.size();
-                }
-            }
+            face.get_corner(split_position).position = positions.size();
             indexer.move_position(move_faces[j], split_position, positions.size());
         }
         split_faces = indexer.list_faces(split_position);
@@ -317,14 +311,11 @@ void CLOD_Mesh::update_resolution(BitStreamReader& reader)
         std::vector<uint32_t> split_diffuse_colors, split_specular_colors, split_texcoords[8];
         for(unsigned int j = 0; j < split_faces.size(); j++) {
             Face& face = faces[split_faces[j]];
-            for(int k = 0; k < 3; k++) {
-                if(face.corners[k].position == split_position) {
-                    split_diffuse_colors.push_back(face.corners[k].diffuse);
-                    split_specular_colors.push_back(face.corners[k].specular);
-                    for(unsigned int l = 0; l < get_texlayer_count(face.shading_id); l++) {
-                        split_texcoords[l].push_back(face.corners[k].texcoord[l]);
-                    }
-                }
+            Corner& corner = face.get_corner(split_position);
+            split_diffuse_colors.push_back(corner.diffuse);
+            split_specular_colors.push_back(corner.specular);
+            for(unsigned int l = 0; l < get_texlayer_count(face.shading_id); l++) {
+                split_texcoords[l].push_back(corner.texcoord[l]);
             }
         }
         greater_unique_sort(split_diffuse_colors);
@@ -337,14 +328,11 @@ void CLOD_Mesh::update_resolution(BitStreamReader& reader)
             std::vector<uint32_t> third_diffuse_colors, third_specular_colors, third_texcoords[8];
             for(unsigned int k = 0; k < third_faces.size(); k++) {
                 Face& face = faces[third_faces[k]];
-                for(int l = 0; l < 3; l++) {
-                    if(face.corners[l].position == new_faces[j].corners[2].position) {
-                        third_diffuse_colors.push_back(face.corners[l].diffuse);
-                        third_specular_colors.push_back(face.corners[l].specular);
-                        for(unsigned int m = 0; m < get_texlayer_count(face.shading_id); m++) {
-                            third_texcoords[m].push_back(face.corners[l].texcoord[m]);
-                        }
-                    }
+                Corner& corner = face.get_corner(new_faces[j].corners[2].position);
+                third_diffuse_colors.push_back(corner.diffuse);
+                third_specular_colors.push_back(corner.specular);
+                for(unsigned int m = 0; m < get_texlayer_count(face.shading_id); m++) {
+                    third_texcoords[m].push_back(corner.texcoord[m]);
                 }
             }
             greater_unique_sort(third_diffuse_colors);
