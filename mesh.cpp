@@ -56,6 +56,7 @@ void CLOD_Mesh::create_base_mesh(BitStreamReader& reader)
     }
     positions.resize(position_count);
     for(unsigned int i = 0; i < position_count; i++) reader >> positions[i];
+    indexer.add_positions(position_count);
     normals.resize(normal_count);
     for(unsigned int i = 0; i < normal_count; i++) reader >> normals[i];
     diffuse_colors.resize(diffuse_count);
@@ -202,8 +203,8 @@ void CLOD_Mesh::update_resolution(BitStreamReader& reader)
             new_faces[j].corners[1].position = positions.size();
             new_faces[j].shading_id = reader[ContextEnum::cShading].read<uint32_t>();
             new_faces[j].ornt = reader[ContextEnum::cFaceOrnt].read<uint8_t>();
-            new_faces[j].third_pos_type = reader[ContextEnum::cThrdPosType].read<uint8_t>();
-            if(new_faces[j].third_pos_type == 1) {
+            uint8_t third_pos_type = reader[ContextEnum::cThrdPosType].read<uint8_t>();
+            if(third_pos_type == 1) {
                 new_faces[j].corners[2].position = local_positions[reader[ContextEnum::cLocal3rdPos].read<uint32_t>()];
             } else {
                 new_faces[j].corners[2].position = reader[i].read<uint32_t>();
@@ -219,9 +220,49 @@ void CLOD_Mesh::update_resolution(BitStreamReader& reader)
         }
         indexer.add_position();
         std::sort(split_faces.begin(), split_faces.end(), std::greater<uint32_t>());
+        std::vector<ContextEnum> predictions;
+        std::vector<uint32_t> move_faces;
         for(unsigned int j = 0; j < split_faces.size(); j++) {
             Face& face = faces[split_faces[j]];
+            ContextEnum context = ContextEnum::cStayMove0;
+            unsigned int k;
+            for(k = 0; k < new_face_count; k++) {
+                uint32_t new_third = new_faces[k].corners[2].position;
+                int flag = indexer.check_edge(face, split_position, new_third);
+                if(flag && context != ContextEnum::cStayMove0) {
+                    context = ContextEnum::cStayMove0;
+                    break;
+                }
+                if(flag > 0) {
+                    context = (new_faces[k].ornt == 1) ? ContextEnum::cStayMove1 : ContextEnum::cStayMove2;
+                } else if(flag < 0) {
+                    context = (new_faces[k].ornt == 1) ? ContextEnum::cStayMove2 : ContextEnum::cStayMove1;
+                }
+            }
+            if(context == ContextEnum::cStayMove0 && k == new_face_count) {
+                for(k = 0; k < j; k++) {
+                    if(indexer.is_face_neighbors(face, faces[split_faces[k]])) {
+                        if(context != ContextEnum::cStayMove0 && predictions[k] != ContextEnum::cStayMove0 && predictions[k] != context) {
+                            context = ContextEnum::cStayMove0;
+                            break;
+                        } else {
+                            context = predictions[k];
+                        }
+                    }
+                }
+            }
+            predictions.push_back(context);
+            if(context == ContextEnum::cStayMove1) {
+                context = ContextEnum::cStayMove3;
+            } else if(context == ContextEnum::cStayMove2) {
+                context = ContextEnum::cStayMove4;
+            }
+            uint8_t staymove = reader[context].read<uint8_t>();
+            if(staymove == 1) {
+                move_faces.push_back(split_faces[j]);
+            }
         }
+        std::fprintf(stderr, "%u faces moved.\n", move_faces.size());
         std::vector<uint32_t> split_diffuse_colors, split_specular_colors, split_texcoords[8];
         for(unsigned int j = 0; j < split_faces.size(); j++) {
             Face& face = faces[split_faces[j]];
@@ -344,7 +385,7 @@ void CLOD_Mesh::update_resolution(BitStreamReader& reader)
         if(split_position < positions.size()) {
             new_position = positions[split_position];
         }
-        //std::fprintf(stderr, "Predicted Position [%f %f %f]\n", new_position.x, new_position.y, new_position.z);
+        std::fprintf(stderr, "Predicted Position [%f %f %f]\n", new_position.x, new_position.y, new_position.z);
         uint8_t pos_sign = reader[ContextEnum::cPosDiffSign].read<uint8_t>();
         uint32_t pos_X = reader[ContextEnum::cPosDiffX].read<uint32_t>();
         uint32_t pos_Y = reader[ContextEnum::cPosDiffY].read<uint32_t>();
@@ -352,7 +393,7 @@ void CLOD_Mesh::update_resolution(BitStreamReader& reader)
         new_position.x += inverse_quant(pos_sign & 0x1, pos_X, position_iq);
         new_position.y += inverse_quant(pos_sign & 0x2, pos_Y, position_iq);
         new_position.z += inverse_quant(pos_sign & 0x4, pos_Z, position_iq);
-        //std::fprintf(stderr, "New Position [%u %u %u]\n", pos_X, pos_Y, pos_Z);
+        std::fprintf(stderr, "New Position [%u %u %u]\n", pos_X, pos_Y, pos_Z);
         std::fprintf(stderr, "New Position [%f %f %f]\n", new_position.x, new_position.y, new_position.z);
         positions.push_back(new_position);
         if(!(attributes & 0x00000001)) {

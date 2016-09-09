@@ -59,7 +59,7 @@ class CLOD_Mesh : public Modifier
     struct NewFace
     {
         uint32_t shading_id;
-        uint8_t ornt, third_pos_type;
+        uint8_t ornt;
         Corner corners[3];
     };
     std::vector<Face> faces;
@@ -70,6 +70,17 @@ class CLOD_Mesh : public Modifier
     {
         std::vector<std::vector<uint32_t>> positions;
     public:
+        static bool is_face_neighbors(const Face& face1, const Face& face2) {
+            int count = 0;
+            for(int i = 0; i < 3; i++) {
+                for(int j = 0; j < 3; j++) {
+                    if(face1.corners[i].position == face2.corners[j].position) {
+                        count++;
+                    }
+                }
+            }
+            return count == 2;
+        }
         void add_face(uint32_t index, const Face& face) {
             for(int i = 0; i < 3; i++) {
                 positions[face.corners[i].position].push_back(index);
@@ -77,6 +88,9 @@ class CLOD_Mesh : public Modifier
         }
         void add_position() {
             positions.push_back(std::vector<uint32_t>());
+        }
+        void add_positions(size_t n) {
+            positions.insert(positions.end(), n, std::vector<uint32_t>());
         }
         std::vector<uint32_t> list_inclusive_neighbors(const std::vector<Face>& faces, uint32_t position) {
             std::vector<uint32_t> neighbors;
@@ -93,6 +107,29 @@ class CLOD_Mesh : public Modifier
                 return std::vector<uint32_t>();
             } else {
                 return positions[position];
+            }
+        }
+        static int check_edge(const Face& face, uint32_t pos1, uint32_t pos2) {
+            if(face.corners[0].position == pos1) {
+                if(face.corners[1].position == pos2) {
+                    return +1;
+                } else {
+                    return face.corners[2].position == pos2 ? +1 : 0;
+                }
+            } else if(face.corners[1].position == pos1) {
+                if(face.corners[0].position == pos2) {
+                    return -1;
+                } else {
+                    return face.corners[2].position == pos2 ? +1 : 0;
+                }
+            } else if(face.corners[2].position == pos1) {
+                if(face.corners[0].position == pos2) {
+                    return -1;
+                } else {
+                    return face.corners[1].position == pos2 ? -1 : 0;
+                }
+            } else {
+                return 0;
             }
         }
     };
