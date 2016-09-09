@@ -66,6 +66,37 @@ class CLOD_Mesh : public Modifier
     //Resolution update status
     uint32_t cur_res;
     Corner last_corners[3];
+    class FaceIndexer
+    {
+        std::vector<std::vector<uint32_t>> positions;
+    public:
+        void add_face(uint32_t index, const Face& face) {
+            for(int i = 0; i < 3; i++) {
+                positions[face.corners[i].position].push_back(index);
+            }
+        }
+        void add_position() {
+            positions.push_back(std::vector<uint32_t>());
+        }
+        std::vector<uint32_t> list_inclusive_neighbors(const std::vector<Face>& faces, uint32_t position) {
+            std::vector<uint32_t> neighbors;
+            for(uint32_t i : positions[position]) {
+                for(int j = 0; j < 3; j++) {
+                    neighbors.push_back(faces[i].corners[j].position);
+                }
+            }
+            greater_unique_sort(neighbors);
+            return neighbors;
+        }
+        std::vector<uint32_t> list_faces(uint32_t position) {
+            if(position >= positions.size()) {
+                return std::vector<uint32_t>();
+            } else {
+                return positions[position];
+            }
+        }
+    };
+    FaceIndexer indexer;
 public:
     CLOD_Mesh(BitStreamReader& reader);
     uint32_t get_texlayer_count(uint32_t shading_id) const
