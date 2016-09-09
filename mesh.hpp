@@ -114,7 +114,7 @@ class CLOD_Mesh : public Modifier
                 if(face.corners[1].position == pos2) {
                     return +1;
                 } else {
-                    return face.corners[2].position == pos2 ? +1 : 0;
+                    return face.corners[2].position == pos2 ? -1 : 0;
                 }
             } else if(face.corners[1].position == pos1) {
                 if(face.corners[0].position == pos2) {
@@ -124,7 +124,7 @@ class CLOD_Mesh : public Modifier
                 }
             } else if(face.corners[2].position == pos1) {
                 if(face.corners[0].position == pos2) {
-                    return -1;
+                    return +1;
                 } else {
                     return face.corners[1].position == pos2 ? -1 : 0;
                 }
