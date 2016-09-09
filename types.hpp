@@ -1,5 +1,6 @@
 #pragma once
 
+#include <iostream>
 #include <vector>
 #include <algorithm>
 
@@ -117,6 +118,15 @@ template<typename T> static inline void greater_unique_sort(std::vector<T>& cont
 {
     std::sort(cont.begin(), cont.end(), std::greater<T>());
     cont.erase(std::unique(cont.begin(), cont.end()), cont.end());
+}
+
+template<typename T> static inline void print_vector(const std::vector<T>& v, const std::string& name)
+{
+    std::cerr << name << " : ";
+    for(auto i : v) {
+        std::cerr << i << " ";
+    }
+    std::cerr << std::endl;
 }
 
 }

@@ -127,7 +127,6 @@ void CLOD_Mesh::update_resolution(BitStreamReader& reader)
                 }
             }
         }
-        local_positions.push_back(positions.size());    //New position always shares a face with split position
         std::sort(local_positions.begin(), local_positions.end(), std::greater<uint32_t>());
         local_positions.erase(std::unique(local_positions.begin(), local_positions.end()), local_positions.end());
         std::fprintf(stderr, "Local position table: ");
@@ -200,6 +199,7 @@ void CLOD_Mesh::update_resolution(BitStreamReader& reader)
         std::fprintf(stderr, "Face Count = %u.\n", new_face_count);
         for(unsigned int j = 0; j < new_face_count; j++) {
             new_faces[j].corners[0].position = split_position;
+            new_faces[j].corners[1].position = positions.size();
             new_faces[j].shading_id = reader[ContextEnum::cShading].read<uint32_t>();
             new_faces[j].ornt = reader[ContextEnum::cFaceOrnt].read<uint8_t>();
             new_faces[j].third_pos_type = reader[ContextEnum::cThrdPosType].read<uint8_t>();
@@ -243,10 +243,10 @@ void CLOD_Mesh::update_resolution(BitStreamReader& reader)
             for(unsigned int k = 0; k < faces.size(); k++) {
                 for(int l = 0; l < 3; l++) {
                     if(faces[k].corners[l].position == new_faces[j].corners[2].position) {
-                        third_diffuse_colors.push_back(faces[j].corners[k].diffuse);
-                        third_specular_colors.push_back(faces[j].corners[k].specular);
-                        for(unsigned int m = 0; m < get_texlayer_count(faces[j].shading_id); m++) {
-                            third_texcoords[m].push_back(faces[j].corners[k].texcoord[m]);
+                        third_diffuse_colors.push_back(faces[k].corners[l].diffuse);
+                        third_specular_colors.push_back(faces[k].corners[l].specular);
+                        for(unsigned int m = 0; m < get_texlayer_count(faces[k].shading_id); m++) {
+                            third_texcoords[m].push_back(faces[k].corners[l].texcoord[m]);
                         }
                     }
                 }
@@ -333,6 +333,7 @@ void CLOD_Mesh::update_resolution(BitStreamReader& reader)
             }
             face.corners[2] = new_faces[j].corners[2];
             faces.push_back(face);
+            std::fprintf(stderr, "New face: %u %u %u\n", face.corners[0].position, face.corners[1].position, face.corners[2].position);
         }
         Vector3f new_position;
         if(split_position < positions.size()) {
@@ -355,7 +356,27 @@ void CLOD_Mesh::update_resolution(BitStreamReader& reader)
             for(unsigned int j = 0; j < faces.size(); j++) {
                 for(int k = 0; k < 3; k++) {
                     if(faces[j].corners[k].position == np_index) {
-
+                        neighbors.push_back(faces[j].corners[0].position);
+                        neighbors.push_back(faces[j].corners[1].position);
+                        neighbors.push_back(faces[j].corners[2].position);
+                    }
+                }
+            }
+            greater_unique_sort(neighbors);
+            print_vector(neighbors, "Neighbors");
+            for(unsigned int j = 0; j < neighbors.size(); j++) {
+                uint32_t normal_count = reader[ContextEnum::cNormalCnt].read<uint32_t>();
+                for(unsigned int k = 0; k < normal_count; k++) {
+                    uint8_t normal_sign = reader[ContextEnum::cDiffNormalSign].read<uint8_t>();
+                    uint32_t normal_X = reader[ContextEnum::cDiffNormalX].read<uint32_t>();
+                    uint32_t normal_Y = reader[ContextEnum::cDiffNormalY].read<uint32_t>();
+                    uint32_t normal_Z = reader[ContextEnum::cDiffNormalZ].read<uint32_t>();
+                }
+                for(unsigned int k = 0; k < faces.size(); k++) {
+                    for(int l = 0; l < 3; l++) {
+                        if(faces[faces.size() - 1 - k].corners[l].position == neighbors[j]) {
+                            uint32_t normal_index = reader[ContextEnum::cNormalIdx].read<uint32_t>();
+                        }
                     }
                 }
             }
