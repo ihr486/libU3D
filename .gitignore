@@ -5,3 +5,5 @@
 !*.md
 !.gitignore
 !Makefile
+!*.u3d
+!tests
