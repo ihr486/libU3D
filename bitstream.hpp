@@ -11,7 +11,7 @@
 namespace U3D
 {
 
-enum struct ContextEnum {
+enum ContextEnum {
     cZero = 0, cShading, cDiffuseCount, cDiffuseColorSign, cColorDiffR, cColorDiffG, cColorDiffB, cColorDiffA, cSpecularCount,
     cSpecularColorSign, cTexCoordCount, cTexCoordSign, cTexCDiffU, cTexCDiffV, cTexCDiffS, cTexCDiffT, cFaceCnt, cFaceOrnt,
     cThrdPosType, cLocal3rdPos, cStayMove0, cStayMove1, cStayMove2, cStayMove3, cStayMove4, cDiffuseKeepChange, cDiffuseChangeType,
