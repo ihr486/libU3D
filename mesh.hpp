@@ -72,18 +72,6 @@ public:
     {
         return shading_descs[shading_id].texcoord_dims.size();
     }
-    bool is_diffuse_color_present(uint32_t shading_id) const
-    {
-        return shading_descs[shading_id].attributes & 0x00000001;
-    }
-    bool is_specular_color_present(uint32_t shading_id) const
-    {
-        return shading_descs[shading_id].attributes & 0x00000002;
-    }
-    bool is_normals_excluded() const
-    {
-        return attributes & 0x00000001;
-    }
     void create_base_mesh(BitStreamReader& reader);
     void update_resolution(BitStreamReader& reader);
 };

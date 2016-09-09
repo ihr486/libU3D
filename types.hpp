@@ -1,6 +1,7 @@
 #pragma once
 
 #include <vector>
+#include <algorithm>
 
 namespace U3D
 {
@@ -94,6 +95,12 @@ template<typename T> static inline void insert_unique(std::vector<T>& cont, T va
     if(i == cont.end()) {
         cont.push_back(val);
     }
+}
+
+template<typename T> static inline void greater_unique_sort(std::vector<T>& cont)
+{
+    std::sort(cont.begin(), cont.end(), std::greater<T>());
+    cont.erase(std::unique(cont.begin(), cont.end()), cont.end());
 }
 
 }
