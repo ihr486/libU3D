@@ -180,6 +180,7 @@ public:
     }
     void create_base_mesh(BitStreamReader& reader);
     void update_resolution(BitStreamReader& reader);
+    void dump_author_mesh();
 };
 
 class CLOD_Modifier : public Modifier
