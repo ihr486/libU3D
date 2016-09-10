@@ -4,7 +4,7 @@
 #include <string>
 #include <cmath>
 #include <vector>
-#include <unordered_map>
+#include <map>
 
 #include "types.hpp"
 #include "bitstream.hpp"
@@ -146,7 +146,7 @@ public:
 class Shading : public Modifier
 {
     uint32_t chain_index, attributes;
-    std::vector<std::vector<std::string>> shader_names;
+    std::vector<std::vector<std::string> > shader_names;
 public:
     Shading(BitStreamReader& reader)
     {
@@ -227,7 +227,7 @@ public:
         }
     }
     virtual ~ModifierChain() {
-        for(auto p : *this) delete p;
+        for(iterator p = begin(); p != end(); p++) delete *p;
     }
 };
 
@@ -376,13 +376,13 @@ class U3DContext
 {
     FileHeader header;
     PriorityManager priority;
-    std::unordered_map<std::string, ModelResource *> models;
-    std::unordered_map<std::string, LightResource *> lights;
-    std::unordered_map<std::string, ViewResource *> views;
-    std::unordered_map<std::string, Texture *> textures;
-    std::unordered_map<std::string, LitTextureShader *> shaders;
-    std::unordered_map<std::string, Material *> materials;
-    std::unordered_map<std::string, Node *> nodes;
+    std::map<std::string, ModelResource *> models;
+    std::map<std::string, LightResource *> lights;
+    std::map<std::string, ViewResource *> views;
+    std::map<std::string, Texture *> textures;
+    std::map<std::string, LitTextureShader *> shaders;
+    std::map<std::string, Material *> materials;
+    std::map<std::string, Node *> nodes;
     BitStreamReader reader;
 public:
     U3DContext(const std::string& filename) : reader(filename)
@@ -446,9 +446,9 @@ public:
                 break;
             case 0xFFFFFF3B:    //CLOD Base Mesh Continuation
                 name = reader.read_str();
-                if(models[name] != nullptr) {
+                if(models[name] != NULL) {
                     CLOD_Mesh *decl = dynamic_cast<CLOD_Mesh *>(models[name]->front());
-                    if(decl != nullptr) {
+                    if(decl != NULL) {
                         decl->create_base_mesh(reader);
                         std::fprintf(stderr, "CLOD Base Mesh Continuation \"%s\"\n", name.c_str());
                     }
@@ -456,9 +456,9 @@ public:
                 break;
             case 0xFFFFFF3C:    //CLOD Progressive Mesh Continuation
                 name = reader.read_str();
-                if(models[name] != nullptr) {
+                if(models[name] != NULL) {
                     CLOD_Mesh *decl = dynamic_cast<CLOD_Mesh *>(models[name]->front());
-                    if(decl != nullptr) {
+                    if(decl != NULL) {
                         decl->update_resolution(reader);
                         std::fprintf(stderr, "CLOD Progressive Mesh Continuation \"%s\"\n", name.c_str());
                     }
@@ -475,13 +475,13 @@ public:
         }
     }
     ~U3DContext() {
-        for(auto p : models) delete p.second;
-        for(auto p : lights) delete p.second;
-        for(auto p : views) delete p.second;
-        for(auto p : textures) delete p.second;
-        for(auto p : shaders) delete p.second;
-        for(auto p : materials) delete p.second;
-        for(auto p : nodes) delete p.second;
+        for(std::map<std::string, ModelResource *>::iterator i = models.begin(); i != models.end(); i++) delete i->second;
+        for(std::map<std::string, LightResource *>::iterator i = lights.begin(); i != lights.end(); i++) delete i->second;
+        for(std::map<std::string, ViewResource *>::iterator i = views.begin(); i != views.end(); i++) delete i->second;
+        for(std::map<std::string, Texture *>::iterator i = textures.begin(); i != textures.end(); i++) delete i->second;
+        for(std::map<std::string, LitTextureShader *>::iterator i = shaders.begin(); i != shaders.end(); i++) delete i->second;
+        for(std::map<std::string, Material *>::iterator i = materials.begin(); i != materials.end(); i++) delete i->second;
+        for(std::map<std::string, Node *>::iterator i = nodes.begin(); i != nodes.end(); i++) delete i->second;
     }
 };
 

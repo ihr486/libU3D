@@ -3,7 +3,6 @@
 #include <cstdio>
 #include <iostream>
 #include <fstream>
-#include <array>
 #include <vector>
 
 #include "types.hpp"
@@ -64,17 +63,17 @@ class BitStreamReader
         {
             return total_symbol_count;
         }
-        std::pair<uint32_t, uint32_t> get_symbol_from_frequency(uint32_t frequency) const
+        uint32_t get_symbol_from_frequency(uint32_t frequency, uint32_t *cum_freq) const
         {
-            uint32_t cum_freq = 0;
-            uint32_t symbol = 0;
+            uint32_t symbol = 0, cum_freq_counter = 0;
             for(; symbol < symbol_count.size(); symbol++) {
-                if(cum_freq + symbol_count[symbol] > frequency) {
+                if(cum_freq_counter + symbol_count[symbol] > frequency) {
                     break;
                 }
-                cum_freq += symbol_count[symbol];
+                cum_freq_counter += symbol_count[symbol];
             }
-            return std::make_pair(symbol, cum_freq);
+            *cum_freq = cum_freq_counter;
+            return symbol;
         }
     };
 public:
@@ -102,7 +101,7 @@ private:
     uint32_t high, low, underflow, type;
     std::vector<uint32_t> data_buffer, metadata_buffer;
     static const uint8_t bit_reverse_table[256];
-    std::array<DynamicContext, static_cast<int>(ContextEnum::NumContexts)> dynamic_contexts;
+    DynamicContext dynamic_contexts[NumContexts];
 private:
     uint32_t read_word_direct()
     {

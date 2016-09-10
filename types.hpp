@@ -4,6 +4,7 @@
 #include <vector>
 #include <algorithm>
 #include <cmath>
+#include <stdint.h>
 
 namespace U3D
 {
@@ -17,19 +18,19 @@ template<typename T> struct Vector3
         return x * v.x + y * v.y + z * v.z;
     }
     Vector3<T> operator*(T a) const {
-        return Vector3<T>{a * x, a * y, a * z};
+        return Vector3<T>(a * x, a * y, a * z);
     }
     Vector3<T> operator/(T a) const {
-        return Vector3<T>{x / a, y / a, z / a};
+        return Vector3<T>(x / a, y / a, z / a);
     }
     Vector3<T> operator+(const Vector3<T>& v) const {
-        return Vector3<T>{x + v.x, y + v.y, z + v.z};
+        return Vector3<T>(x + v.x, y + v.y, z + v.z);
     }
     Vector3<T> operator-(const Vector3<T>& v) const {
-        return Vector3<T>{x - v.x, y - v.y, z - v.z};
+        return Vector3<T>(x - v.x, y - v.y, z - v.z);
     }
     Vector3<T> operator^(const Vector3<T>& v) const {
-        return Vector3<T>{y * v.z - z * v.y, z * v.x - x * v.z, x * v.y - y * v.x};
+        return Vector3<T>(y * v.z - z * v.y, z * v.x - x * v.z, x * v.y - y * v.x);
     }
     Vector3<T> normalize() const {
         T size = sqrt(x * x + y * y + z * z);
@@ -106,13 +107,13 @@ template<typename T> struct TexCoord4
     TexCoord4() : u(0), v(0), s(0), t(0) {}
 };
 
-using Vector3f = Vector3<float>;
-using Matrix4f = Matrix4<float>;
-using Color3f = Color3<float>;
-using Quaternion4f = Quaternion4<float>;
-using Vector2f = Vector2<float>;
-using Color4f = Color4<float>;
-using TexCoord4f = TexCoord4<float>;
+typedef Vector3<float> Vector3f;
+typedef Matrix4<float> Matrix4f;
+typedef Color3<float> Color3f;
+typedef Quaternion4<float> Quaternion4f;
+typedef Vector2<float> Vector2f;
+typedef Color4<float> Color4f;
+typedef TexCoord4<float> TexCoord4f;
 
 class Modifier
 {
@@ -150,8 +151,8 @@ template<typename T> static inline void greater_unique_sort(std::vector<T>& cont
 template<typename T> static inline void print_vector(const std::vector<T>& v, const std::string& name)
 {
     std::cerr << name << " : ";
-    for(auto i : v) {
-        std::cerr << i << " ";
+    for(typename std::vector<T>::const_iterator i = v.begin(); i != v.end(); i++) {
+        std::cerr << *i << " ";
     }
     std::cerr << std::endl;
 }

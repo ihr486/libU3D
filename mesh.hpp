@@ -71,7 +71,7 @@ class CLOD_Mesh : public Modifier
     Corner last_corners[3];
     class FaceIndexer
     {
-        std::vector<std::vector<uint32_t>> positions;
+        std::vector<std::vector<uint32_t> > positions;
     public:
         static bool is_face_neighbors(const Face& face1, const Face& face2) {
             int count = 0;
@@ -97,9 +97,9 @@ class CLOD_Mesh : public Modifier
         }
         std::vector<uint32_t> list_inclusive_neighbors(const std::vector<Face>& faces, uint32_t position) {
             std::vector<uint32_t> neighbors;
-            for(uint32_t i : positions[position]) {
+            for(unsigned int i = 0; i < positions[position].size(); i++) {
                 for(int j = 0; j < 3; j++) {
-                    neighbors.push_back(faces[i].corners[j].position);
+                    neighbors.push_back(faces[positions[position][i]].corners[j].position);
                 }
             }
             greater_unique_sort(neighbors);
@@ -118,8 +118,8 @@ class CLOD_Mesh : public Modifier
         }
         std::vector<uint32_t> list_diffuse_colors(std::vector<Face>& faces, uint32_t position) {
             std::vector<uint32_t> ret;
-            for(auto i : positions[position]) {
-                Corner& corner = faces[i].get_corner(position);
+            for(uint32_t i = 0; i < positions[position].size(); i++) {
+                Corner& corner = faces[positions[position][i]].get_corner(position);
                 ret.push_back(corner.diffuse);
             }
             greater_unique_sort(ret);
@@ -127,8 +127,8 @@ class CLOD_Mesh : public Modifier
         }
         std::vector<uint32_t> list_specular_colors(std::vector<Face>& faces, uint32_t position) {
             std::vector<uint32_t> ret;
-            for(auto i : positions[position]) {
-                Corner& corner = faces[i].get_corner(position);
+            for(unsigned int i = 0; i < positions[position].size(); i++) {
+                Corner& corner = faces[positions[position][i]].get_corner(position);
                 ret.push_back(corner.specular);
             }
             greater_unique_sort(ret);
@@ -137,23 +137,14 @@ class CLOD_Mesh : public Modifier
         std::vector<uint32_t> list_texcoords(std::vector<Face>& faces, const std::vector<ShadingDesc>& shading_descs, uint32_t position, unsigned int layer) {
             std::fprintf(stderr, "Listing texcoords...\n");
             std::vector<uint32_t> ret;
-            for(auto i : positions[position]) {
-                if(shading_descs[faces[i].shading_id].texcoord_dims.size() > layer) {
-                    Corner& corner = faces[i].get_corner(position);
+            for(unsigned int i = 0; i < positions[position].size(); i++) {
+                if(shading_descs[faces[positions[position][i]].shading_id].texcoord_dims.size() > layer) {
+                    Corner& corner = faces[positions[position][i]].get_corner(position);
                     ret.push_back(corner.texcoord[layer]);
                 }
             }
             greater_unique_sort(ret);
             std::fprintf(stderr, "Listing texcoords complete.\n");
-            return ret;
-        }
-        std::vector<uint32_t> list_normals(std::vector<Face>& faces, uint32_t position) {
-            std::vector<uint32_t> ret;
-            for(auto i : positions[position]) {
-                Corner& corner = faces[i].get_corner(position);
-                ret.push_back(corner.normal);
-            }
-            greater_unique_sort(ret);
             return ret;
         }
         static int check_edge(const Face& face, uint32_t pos1, uint32_t pos2) {

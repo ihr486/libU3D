@@ -25,7 +25,7 @@ const uint8_t BitStreamReader::bit_reverse_table[256] =
 
 BitStreamReader::BitStreamReader(const std::string& filename) : bit_position(0), high(0xFFFF), low(0), underflow(0)
 {
-    ifs.open(filename, std::ios::in);
+    ifs.open(filename.c_str(), std::ios::in);
     if(!ifs.is_open()) {
         std::fprintf(stderr, "Failed to open: %s.\n", filename.c_str());
     }
@@ -94,9 +94,8 @@ uint32_t BitStreamReader::read_dynamic_symbol(uint32_t context)
     uint32_t range = high + 1 - low;
     uint32_t total_freq = dynamic_contexts[context].get_total_symbol_frequency();
     uint32_t cum_freq = (total_freq * (1 + code - low) - 1) / range;
-    auto lookup_result = dynamic_contexts[context].get_symbol_from_frequency(cum_freq);
-    uint32_t symbol = lookup_result.first;
-    uint32_t val_cum_freq = lookup_result.second;
+    uint32_t val_cum_freq;
+    uint32_t symbol = dynamic_contexts[context].get_symbol_from_frequency(cum_freq, &val_cum_freq);
     uint32_t val_freq = dynamic_contexts[context].get_symbol_frequency(symbol);
 
     high = low - 1 + range * (val_cum_freq + val_freq) / total_freq;

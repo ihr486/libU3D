@@ -447,13 +447,13 @@ void CLOD_Mesh::update_resolution(BitStreamReader& reader)
             for(unsigned int j = 0; j < neighbors.size(); j++) {
                 std::vector<Vector3f> face_norms, new_norms;
                 std::vector<uint32_t> client_faces = indexer.list_faces(neighbors[j]);
-                for(auto i : client_faces) {
+                /*for(auto i : client_faces) {
                     Vector3f ba = positions[faces[i].corners[1].position] - positions[faces[i].corners[0].position];
                     Vector3f ca = positions[faces[i].corners[2].position] - positions[faces[i].corners[0].position];
                     Vector3f n0 = (ba ^ ca).normalize();
                     face_norms.push_back(n0);
                     std::fprintf(stderr, "Original face norm [%f %f %f]\n", n0.x, n0.y, n0.z);
-                }
+                }*/
                 uint32_t normal_count = reader[cNormalCnt].read<uint32_t>();
                 std::fprintf(stderr, "Neighbor %u : Face Normal Count = %lu, Normal Count = %u.\n", neighbors[j], face_norms.size(), normal_count);
                 for(unsigned int k = 0; k < normal_count; k++) {
@@ -462,12 +462,12 @@ void CLOD_Mesh::update_resolution(BitStreamReader& reader)
                     uint32_t normal_Y = reader[cDiffNormalY].read<uint32_t>();
                     uint32_t normal_Z = reader[cDiffNormalZ].read<uint32_t>();
 
-                    new_norms[k].x += inverse_quant(normal_sign & 0x2, normal_X, normal_iq);
+                    /*new_norms[k].x += inverse_quant(normal_sign & 0x2, normal_X, normal_iq);
                     new_norms[k].y += inverse_quant(normal_sign & 0x4, normal_Y, normal_iq);
-                    new_norms[k].z += inverse_quant(normal_sign & 0x8, normal_Z, normal_iq);
+                    new_norms[k].z += inverse_quant(normal_sign & 0x8, normal_Z, normal_iq);*/
 
                     std::fprintf(stderr, "Normal Diff [%u %u %u %u]\n", normal_sign, normal_X, normal_Y, normal_Z);
-                    std::fprintf(stderr, "New Normal [%f %f %f]\n", new_norms[k].x, new_norms[k].y, new_norms[k].z);
+                    //std::fprintf(stderr, "New Normal [%f %f %f]\n", new_norms[k].x, new_norms[k].y, new_norms[k].z);
                 }
                 for(unsigned int k = 0; k < client_faces.size(); k++) {
                     uint32_t normal_index = reader[cNormalIdx].read<uint32_t>();
