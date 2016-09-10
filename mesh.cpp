@@ -213,7 +213,26 @@ void CLOD_Mesh::update_resolution(BitStreamReader& reader)
             print_vector(local_positions, "Updated local position");
         }
         indexer.add_position();
+        //std::sort(split_faces.begin(), split_faces.end(), std::greater<uint32_t>());
+        //split_faces = indexer.list_faces(split_position);
         std::sort(split_faces.begin(), split_faces.end(), std::greater<uint32_t>());
+        std::vector<uint32_t> split_diffuse_colors, split_specular_colors, split_texcoords[8];
+        for(unsigned int j = 0; j < split_faces.size(); j++) {
+            Face& face = faces[split_faces[j]];
+            Corner& corner = face.get_corner(split_position);
+            split_diffuse_colors.push_back(corner.diffuse);
+            split_specular_colors.push_back(corner.specular);
+            for(unsigned int l = 0; l < get_texlayer_count(face.shading_id); l++) {
+                split_texcoords[l].push_back(corner.texcoord[l]);
+            }
+        }
+        greater_unique_sort(split_diffuse_colors);
+        greater_unique_sort(split_specular_colors);
+        for(int j = 0; j < 8; j++) {
+            greater_unique_sort(split_texcoords[j]);
+        }
+        print_vector(split_texcoords[0], "Split TexCoord 0");
+        std::fprintf(stderr, "Data acquired from split position.\n");
         print_vector(split_faces, "Faces that included the split position");
         std::vector<uint32_t> move_faces, moved_positions, stayed_positions;
         for(unsigned int j = 0; j < split_faces.size(); j++) {
@@ -318,30 +337,13 @@ void CLOD_Mesh::update_resolution(BitStreamReader& reader)
                 }
             }
             face.get_corner(split_position).position = positions.size();
+            std::fprintf(stderr, "Face #%u Position #%u -> Position #%u.\n", move_faces[j], split_position, positions.size());
             indexer.move_position(move_faces[j], split_position, positions.size());
         }
         std::fprintf(stderr, "Move Face completed.\n");
         diffuse_colors.insert(diffuse_colors.end(), new_diffuse_colors.begin(), new_diffuse_colors.end());
         specular_colors.insert(specular_colors.end(), new_specular_colors.begin(), new_specular_colors.end());
         texcoords.insert(texcoords.end(), new_texcoords.begin(), new_texcoords.end());
-        split_faces = indexer.list_faces(split_position);
-        std::sort(split_faces.begin(), split_faces.end(), std::greater<uint32_t>());
-        std::vector<uint32_t> split_diffuse_colors, split_specular_colors, split_texcoords[8];
-        for(unsigned int j = 0; j < split_faces.size(); j++) {
-            Face& face = faces[split_faces[j]];
-            Corner& corner = face.get_corner(split_position);
-            split_diffuse_colors.push_back(corner.diffuse);
-            split_specular_colors.push_back(corner.specular);
-            for(unsigned int l = 0; l < get_texlayer_count(face.shading_id); l++) {
-                split_texcoords[l].push_back(corner.texcoord[l]);
-            }
-        }
-        greater_unique_sort(split_diffuse_colors);
-        greater_unique_sort(split_specular_colors);
-        for(int j = 0; j < 8; j++) {
-            greater_unique_sort(split_texcoords[j]);
-        }
-        std::fprintf(stderr, "Data acquired from split position.\n");
         for(unsigned int j = 0; j < new_face_count; j++) {
             std::vector<uint32_t> third_faces = indexer.list_faces(new_faces[j].corners[2].position);
             std::vector<uint32_t> third_diffuse_colors, third_specular_colors, third_texcoords[8];
@@ -378,8 +380,8 @@ void CLOD_Mesh::update_resolution(BitStreamReader& reader)
                         new_faces[j].corners[k].diffuse = last_corners[k].diffuse;
                     }
                     last_corners[k].diffuse = new_faces[j].corners[k].diffuse;
+                    if(k == 0) insert_unique(split_diffuse_colors, new_faces[j].corners[0].diffuse);
                 }
-                insert_unique(split_diffuse_colors, new_faces[j].corners[0].diffuse);
             }
             if(shading_descs[new_faces[j].shading_id].attributes & 0x00000002) {
                 uint8_t specular_dup_flag = reader[cColorDup].read<uint8_t>();
@@ -400,8 +402,8 @@ void CLOD_Mesh::update_resolution(BitStreamReader& reader)
                         new_faces[j].corners[k].specular = last_corners[k].specular;
                     }
                     last_corners[k].specular = new_faces[j].corners[k].specular;
+                    if(k == 0) insert_unique(split_specular_colors, new_faces[j].corners[0].specular);
                 }
-                insert_unique(split_specular_colors, new_faces[j].corners[0].specular);
             }
             for(unsigned int k = 0; k < get_texlayer_count(new_faces[j].shading_id); k++) {
                 uint8_t texcoord_dup_flag = reader[cTexCDup].read<uint8_t>();
@@ -424,9 +426,9 @@ void CLOD_Mesh::update_resolution(BitStreamReader& reader)
                         std::fprintf(stderr, "Reused texcoord index = %u.\n", new_faces[j].corners[l].texcoord[k]);
                     }
                     last_corners[l].texcoord[k] = new_faces[j].corners[l].texcoord[k];
+                    if(l == 0) insert_unique(split_texcoords[k], new_faces[j].corners[0].texcoord[k]);
                 }
                 std::fprintf(stderr, "TexCoord for new face #%u(L%u) : [%u %u %u]\n", j, k, new_faces[j].corners[0].texcoord[k], new_faces[j].corners[1].texcoord[k], new_faces[j].corners[2].texcoord[k]);
-                insert_unique(split_texcoords[k], new_faces[j].corners[0].texcoord[k]);
             }
             Face face;
             face.shading_id = new_faces[j].shading_id;
