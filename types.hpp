@@ -9,6 +9,8 @@
 namespace U3D
 {
 
+template<typename T> struct Quaternion4;
+
 template<typename T> struct Vector3
 {
     T x, y, z;
@@ -36,13 +38,14 @@ template<typename T> struct Vector3
         T size = sqrt(x * x + y * y + z * z);
         return (*this) / size;
     }
+    Vector3<T>& operator=(const Quaternion4<T>& q);
 };
 
 template<typename T> static inline Vector3<T> slerp(const Vector3<T>& a, const Vector3<T>& b, T t)
 {
     T omega = std::acos(a * b);
     if(omega == 0) return a;
-    return std::sin(t * omega) / std::sin(omega) * a + std::sin((1 - t) * omega) / std::sin(omega) * b;
+    return a * std::sin((1 - t) * omega) / std::sin(omega) + b * std::sin(t * omega) / std::sin(omega);
 }
 
 template<typename T> struct Vector2
@@ -92,6 +95,11 @@ template<typename T> struct Quaternion4
         w = 0, x = v.x, y = v.y, z = v.z;
     }
 };
+
+template<typename T> Vector3<T>& Vector3<T>::operator=(const Quaternion4<T>& q) {
+    x = q.x, y = q.y, z = q.z;
+    return *this;
+}
 
 template<typename T> struct TexCoord4
 {

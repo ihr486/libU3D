@@ -455,13 +455,53 @@ void CLOD_Mesh::update_resolution(BitStreamReader& reader)
             for(unsigned int j = 0; j < neighbors.size(); j++) {
                 std::vector<Vector3f> face_norms, new_norms;
                 std::vector<uint32_t> client_faces = indexer.list_faces(neighbors[j]);
-                /*for(auto i : client_faces) {
-                    Vector3f ba = positions[faces[i].corners[1].position] - positions[faces[i].corners[0].position];
-                    Vector3f ca = positions[faces[i].corners[2].position] - positions[faces[i].corners[0].position];
+                for(unsigned int k = 0; k < client_faces.size(); k++) {
+                    Face& face = faces[client_faces[k]];
+                    Vector3f ba = positions[face.corners[1].position] - positions[face.corners[0].position];
+                    Vector3f ca = positions[face.corners[2].position] - positions[face.corners[0].position];
                     Vector3f n0 = (ba ^ ca).normalize();
                     face_norms.push_back(n0);
                     std::fprintf(stderr, "Original face norm [%f %f %f]\n", n0.x, n0.y, n0.z);
-                }*/
+                }
+                new_norms.push_back(face_norms[0]);
+                while(new_norms.size() < face_norms.size()) {
+                    float farthest_dist = 1.0f;
+                    std::vector<Vector3f>::iterator farthest_index = face_norms.begin();
+                    for(std::vector<Vector3f>::iterator k = face_norms.begin(); k != face_norms.end(); k++) {
+                        float nearest_dist = -1.0f;
+                        for(unsigned int l = 0; l < new_norms.size(); l++) {
+                            if((*k) * new_norms[l] > nearest_dist) {
+                                nearest_dist = (*k) * new_norms[l];
+                            }
+                        }
+                        if(nearest_dist < farthest_dist) {
+                            farthest_dist = nearest_dist;
+                            farthest_index = k;
+                        }
+                    }
+                    new_norms.push_back(*farthest_index);
+                    face_norms.erase(farthest_index);
+                }
+                for(std::vector<Vector3f>::iterator k = new_norms.begin(); k != new_norms.end(); k++) {
+                    std::fprintf(stderr, "Selected norm [%f %f %f]\n", k->x, k->y, k->z);
+                }
+                std::vector<unsigned int> merge_weight(new_norms.size(), 0);
+                while(face_norms.size() > 0) {
+                    float nearest_dist = -1.0f;
+                    unsigned int nearest_index = 0;
+                    for(unsigned int k = 0; k < new_norms.size(); k++) {
+                        if(new_norms[k] * face_norms.back() > nearest_dist) {
+                            nearest_dist = new_norms[k] * face_norms.back();
+                            nearest_index = k;
+                        }
+                    }
+                    new_norms[nearest_index] = slerp(new_norms[nearest_index], face_norms.back(), 1.0f / (merge_weight[nearest_index] + 2.0f));
+                    merge_weight[nearest_index]++;
+                    face_norms.pop_back();
+                }
+                for(std::vector<Vector3f>::iterator k = new_norms.begin(); k != new_norms.end(); k++) {
+                    std::fprintf(stderr, "Merged norm [%f %f %f]\n", k->x, k->y, k->z);
+                }
                 uint32_t normal_count = reader[cNormalCnt].read<uint32_t>();
                 std::fprintf(stderr, "Neighbor %u : Face Normal Count = %lu, Normal Count = %u.\n", neighbors[j], face_norms.size(), normal_count);
                 for(unsigned int k = 0; k < normal_count; k++) {
@@ -470,18 +510,24 @@ void CLOD_Mesh::update_resolution(BitStreamReader& reader)
                     uint32_t normal_Y = reader[cDiffNormalY].read<uint32_t>();
                     uint32_t normal_Z = reader[cDiffNormalZ].read<uint32_t>();
 
-                    /*new_norms[k].x += inverse_quant(normal_sign & 0x2, normal_X, normal_iq);
-                    new_norms[k].y += inverse_quant(normal_sign & 0x4, normal_Y, normal_iq);
-                    new_norms[k].z += inverse_quant(normal_sign & 0x8, normal_Z, normal_iq);*/
+                    Quaternion4f normal_diff;
+                    normal_diff.x = inverse_quant(normal_sign & 0x2, normal_X, normal_iq);
+                    normal_diff.y = inverse_quant(normal_sign & 0x4, normal_Y, normal_iq);
+                    normal_diff.z = inverse_quant(normal_sign & 0x8, normal_Z, normal_iq);
+                    normal_diff.w = std::sqrt(1.0 - std::min(1.0f, normal_diff.x * normal_diff.x + normal_diff.y * normal_diff.y + normal_diff.z * normal_diff.z));
+                    
+                    new_norms[k] = normal_diff * Quaternion4f(new_norms[k]);
 
                     std::fprintf(stderr, "Normal Diff [%u %u %u %u]\n", normal_sign, normal_X, normal_Y, normal_Z);
-                    //std::fprintf(stderr, "New Normal [%f %f %f]\n", new_norms[k].x, new_norms[k].y, new_norms[k].z);
+                    std::fprintf(stderr, "New Normal [%f %f %f]\n", new_norms[k].x, new_norms[k].y, new_norms[k].z);
                 }
                 for(unsigned int k = 0; k < client_faces.size(); k++) {
-                    uint32_t normal_index = reader[cNormalIdx].read<uint32_t>();
+                    uint32_t normal_index = normals.size() + reader[cNormalIdx].read<uint32_t>();
 
                     std::fprintf(stderr, "Face %u : Normal Index = %u.\n", client_faces[k], normal_index);
+                    faces[client_faces[k]].get_corner(neighbors[j]).normal = normal_index;
                 }
+                normals.insert(normals.end(), new_norms.begin(), new_norms.end());
             }
         }
     }
