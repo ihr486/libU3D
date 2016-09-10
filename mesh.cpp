@@ -70,16 +70,24 @@ void CLOD_Mesh::create_base_mesh(BitStreamReader& reader)
         reader[cShading] >> faces[i].shading_id;
         for(int j = 0; j < 3; j++) {
             reader[position_count] >> faces[i].corners[j].position;
-            reader[normal_count] >> faces[i].corners[j].normal;
-            reader[diffuse_count] >> faces[i].corners[j].diffuse;
-            reader[specular_count] >> faces[i].corners[j].specular;
+            if(!(attributes & 0x00000001)) {
+                reader[normal_count] >> faces[i].corners[j].normal;
+            }
+            if(shading_descs[faces[i].shading_id].attributes & 0x00000001) {
+                reader[diffuse_count] >> faces[i].corners[j].diffuse;
+            }
+            if(shading_descs[faces[i].shading_id].attributes & 0x00000002) {
+                reader[specular_count] >> faces[i].corners[j].specular;
+            }
             for(unsigned int k = 0; k < get_texlayer_count(faces[i].shading_id); k++) {
                 reader[texcoord_count] >> faces[i].corners[j].texcoord[k];
             }
         }
+        //std::fprintf(stderr, "Face #%u : [%u %u %u]\n", i, faces[i].corners[0].position, faces[i].corners[1].position, faces[i].corners[2].position);
         indexer.add_face(i, faces[i]);
     }
     cur_res = min_res;
+    std::fprintf(stderr, "Base mesh created: %u pos, %u faces\n", position_count, face_count);
 }
 
 void CLOD_Mesh::update_resolution(BitStreamReader& reader)

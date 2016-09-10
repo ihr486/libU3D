@@ -28,15 +28,26 @@ BitStreamReader::BitStreamReader(const std::string& filename) : bit_position(0),
     ifs.open(filename.c_str(), std::ios::in);
     if(!ifs.is_open()) {
         std::fprintf(stderr, "Failed to open: %s.\n", filename.c_str());
+    } else {
+        std::fprintf(stderr, "%s opened.\n", filename.c_str());
     }
 }
 
 bool BitStreamReader::open_block()
 {
+    /*if(data_buffer.size() < 4) data_buffer.resize(4);
+    ifs.read(reinterpret_cast<char *>(data_buffer.data()), 12);
+    bit_position = 0;
+    type = read<uint32_t>();
+    uint32_t data_size = (read<uint32_t>() + 3) / 4;
+    uint32_t metadata_size = (read<uint32_t>() + 3) / 4;
+    std::fprintf(stderr, "Block opened: %08X-%u/%u\n", type, data_size, metadata_size);*/
+    reset();
     type = read_word_direct();
     if(ifs.eof()) return false;
     uint32_t data_size = (read_word_direct() + 3) / 4;
     uint32_t metadata_size = (read_word_direct() + 3) / 4;
+    std::fprintf(stderr, "Opening block : Type = 0x%08X, Data Size = %u, Metadata Size = %u.\n", type, data_size, metadata_size);
     data_buffer.resize(data_size + 1);
     metadata_buffer.resize(metadata_size + 1);
     ifs.read(reinterpret_cast<char *>(data_buffer.data()), 4 * data_size);
@@ -44,6 +55,7 @@ bool BitStreamReader::open_block()
     data_buffer[data_size] = 0;
     metadata_buffer[metadata_size] = 0;
     bit_position = 0;
+    std::fprintf(stderr, "Block opened : Type = 0x%08X, Data Size = %u, Metadata Size = %u.\n", type, data_size, metadata_size);
     return true;
 }
 

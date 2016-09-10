@@ -33,6 +33,13 @@ class BitStreamReader
         {
             symbol_count[0] = 1;
         }
+        void reset()
+        {
+            symbol_count.resize(256);
+            std::fill(symbol_count.begin(), symbol_count.end(), 0);
+            symbol_count[0] = 1;
+            total_symbol_count = 1;
+        }
         void add_symbol(uint32_t symbol)
         {
             if(symbol <= 0xFFFF) {
@@ -112,13 +119,6 @@ private:
 public:
     BitStreamReader(const std::string& filename);
     bool open_block();
-        /*if(data_buffer.size() < 4) data_buffer.resize(4);
-        ifs.read(reinterpret_cast<char *>(data_buffer.data()), 12);
-        bit_position = 0;
-        type = read<uint32_t>();
-        uint32_t data_size = (read<uint32_t>() + 3) / 4;
-        uint32_t metadata_size = (read<uint32_t>() + 3) / 4;
-        std::fprintf(stderr, "Block opened: %08X-%u/%u\n", type, data_size, metadata_size);*/
     template<typename T> T read()
     {
         T ret;
@@ -127,6 +127,13 @@ public:
             p[i] = read_byte();
         }
         return ret;
+    }
+    void reset()
+    {
+        for(int i = 0; i < NumContexts; i++) {
+            dynamic_contexts[i].reset();
+        }
+        high = 0xFFFF, low = 0, underflow = 0;
     }
     template<typename T> BitStreamReader& operator>>(T& val)
     {

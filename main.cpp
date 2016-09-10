@@ -452,6 +452,8 @@ public:
                         decl->create_base_mesh(reader);
                         std::fprintf(stderr, "CLOD Base Mesh Continuation \"%s\"\n", name.c_str());
                     }
+                } else {
+                    std::fprintf(stderr, "CLOD Base Mesh Continuation \"%s\" is not declared.\n", name.c_str());
                 }
                 break;
             case 0xFFFFFF3C:    //CLOD Progressive Mesh Continuation
