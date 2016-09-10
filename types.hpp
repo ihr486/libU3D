@@ -3,6 +3,7 @@
 #include <iostream>
 #include <vector>
 #include <algorithm>
+#include <cmath>
 
 namespace U3D
 {
@@ -11,22 +12,36 @@ template<typename T> struct Vector3
 {
     T x, y, z;
     Vector3() : x(0), y(0), z(0) {}
-    T operator*(const Vector3<T>& v) {
+    Vector3(T x, T y, T z) : x(x), y(y), z(z) {}
+    T operator*(const Vector3<T>& v) const {
         return x * v.x + y * v.y + z * v.z;
     }
-    Vector3<T> operator*(T a) {
+    Vector3<T> operator*(T a) const {
         return Vector3<T>{a * x, a * y, a * z};
     }
-    Vector3<T> operator+(const Vector3<T>& v) {
+    Vector3<T> operator/(T a) const {
+        return Vector3<T>{x / a, y / a, z / a};
+    }
+    Vector3<T> operator+(const Vector3<T>& v) const {
         return Vector3<T>{x + v.x, y + v.y, z + v.z};
+    }
+    Vector3<T> operator-(const Vector3<T>& v) const {
+        return Vector3<T>{x - v.x, y - v.y, z - v.z};
+    }
+    Vector3<T> operator^(const Vector3<T>& v) const {
+        return Vector3<T>{y * v.z - z * v.y, z * v.x - x * v.z, x * v.y - y * v.x};
+    }
+    Vector3<T> normalize() const {
+        T size = sqrt(x * x + y * y + z * z);
+        return (*this) / size;
     }
 };
 
 template<typename T> static inline Vector3<T> slerp(const Vector3<T>& a, const Vector3<T>& b, T t)
 {
-    T omega = acos(a * b);
+    T omega = std::acos(a * b);
     if(omega == 0) return a;
-    return sin(t * omega) / sin(omega) * a + sin((1 - t) * omega) / sin(omega) * b;
+    return std::sin(t * omega) / std::sin(omega) * a + std::sin((1 - t) * omega) / std::sin(omega) * b;
 }
 
 template<typename T> struct Vector2
@@ -63,6 +78,18 @@ template<typename T> struct Matrix4
 template<typename T> struct Quaternion4
 {
     T w, x, y, z;
+    Quaternion4() : w(0), x(0), y(0), z(0) {}
+    Quaternion4<T> operator*(const Quaternion4<T>& q) {
+        Quaternion4<T> ret;
+        ret.w = w * q.w - x * q.x - y * q.y - z * q.z;
+        ret.x = w * q.x + q.w * x + y * q.z - z * q.y;
+        ret.y = w * q.y + q.w * y + z * q.x - x * q.z;
+        ret.z = w * q.z + q.w * z + x * q.y - y * q.x;
+        return ret;
+    }
+    Quaternion4(const Vector3<T>& v) {
+        w = 0, x = v.x, y = v.y, z = v.z;
+    }
 };
 
 template<typename T> struct TexCoord4

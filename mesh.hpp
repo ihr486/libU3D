@@ -116,6 +116,46 @@ class CLOD_Mesh : public Modifier
             positions[position].erase(std::remove(positions[position].begin(), positions[position].end(), face), positions[position].end());
             positions[new_position].push_back(face);
         }
+        std::vector<uint32_t> list_diffuse_colors(std::vector<Face>& faces, uint32_t position) {
+            std::vector<uint32_t> ret;
+            for(auto i : positions[position]) {
+                Corner& corner = faces[i].get_corner(position);
+                ret.push_back(corner.diffuse);
+            }
+            greater_unique_sort(ret);
+            return ret;
+        }
+        std::vector<uint32_t> list_specular_colors(std::vector<Face>& faces, uint32_t position) {
+            std::vector<uint32_t> ret;
+            for(auto i : positions[position]) {
+                Corner& corner = faces[i].get_corner(position);
+                ret.push_back(corner.specular);
+            }
+            greater_unique_sort(ret);
+            return ret;
+        }
+        std::vector<uint32_t> list_texcoords(std::vector<Face>& faces, const std::vector<ShadingDesc>& shading_descs, uint32_t position, unsigned int layer) {
+            std::fprintf(stderr, "Listing texcoords...\n");
+            std::vector<uint32_t> ret;
+            for(auto i : positions[position]) {
+                if(shading_descs[faces[i].shading_id].texcoord_dims.size() > layer) {
+                    Corner& corner = faces[i].get_corner(position);
+                    ret.push_back(corner.texcoord[layer]);
+                }
+            }
+            greater_unique_sort(ret);
+            std::fprintf(stderr, "Listing texcoords complete.\n");
+            return ret;
+        }
+        std::vector<uint32_t> list_normals(std::vector<Face>& faces, uint32_t position) {
+            std::vector<uint32_t> ret;
+            for(auto i : positions[position]) {
+                Corner& corner = faces[i].get_corner(position);
+                ret.push_back(corner.normal);
+            }
+            greater_unique_sort(ret);
+            return ret;
+        }
         static int check_edge(const Face& face, uint32_t pos1, uint32_t pos2) {
             if(face.corners[0].position == pos1) {
                 if(face.corners[1].position == pos2) {

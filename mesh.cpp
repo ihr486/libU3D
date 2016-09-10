@@ -100,10 +100,6 @@ void CLOD_Mesh::update_resolution(BitStreamReader& reader)
             reader[i] >> split_position;
         }
         std::fprintf(stderr, "Split Position = %u.\n", split_position);
-        /*if(split_position >= positions.size()) {
-            std::fprintf(stderr, "Invalid split position.\n");
-            return;
-        }*/
         Color4f diffuse_average, specular_average;
         TexCoord4f texcoord_average;
         unsigned int color_match_count = 0;
@@ -150,7 +146,6 @@ void CLOD_Mesh::update_resolution(BitStreamReader& reader)
 
             std::fprintf(stderr, "\tDiffuse [%f %f %f %f]\n", new_diffuse_colors[j].r, new_diffuse_colors[j].g, new_diffuse_colors[j].b, new_diffuse_colors[j].a);
         }
-        diffuse_colors.insert(diffuse_colors.end(), new_diffuse_colors.begin(), new_diffuse_colors.end());
         uint16_t new_specular_count = reader[cSpecularCount].read<uint16_t>();
         std::vector<Color4f> new_specular_colors(new_specular_count, specular_average);
         std::fprintf(stderr, "Specular Count = %u.\n", new_specular_count);
@@ -168,7 +163,6 @@ void CLOD_Mesh::update_resolution(BitStreamReader& reader)
 
             std::fprintf(stderr, "\tSpecular [%f %f %f %f]\n", new_specular_colors[j].r, new_specular_colors[j].g, new_specular_colors[j].b, new_specular_colors[j].a);
         }
-        specular_colors.insert(specular_colors.end(), new_specular_colors.begin(), new_specular_colors.end());
         uint16_t new_texcoord_count = reader[cTexCoordCount].read<uint16_t>();
         std::vector<TexCoord4f> new_texcoords(new_texcoord_count, texcoord_average);
         std::fprintf(stderr, "TexCoord Count = %u.\n", new_texcoord_count);
@@ -186,7 +180,6 @@ void CLOD_Mesh::update_resolution(BitStreamReader& reader)
 
             std::fprintf(stderr, "\tTexCoord [%f %f %f %f]\n", new_texcoords[j].u, new_texcoords[j].v, new_texcoords[j].s, new_texcoords[j].t);
         }
-        texcoords.insert(texcoords.end(), new_texcoords.begin(), new_texcoords.end());
         uint32_t new_face_count = reader[cFaceCnt].read<uint32_t>();
         std::vector<NewFace> new_faces(new_face_count);
         std::fprintf(stderr, "Face Count = %u.\n", new_face_count);
@@ -217,11 +210,6 @@ void CLOD_Mesh::update_resolution(BitStreamReader& reader)
             for(unsigned int k = 0; k < new_face_count; k++) {
                 uint32_t new_third = new_faces[k].corners[2].position;
                 int flag = indexer.check_edge(face, split_position, new_third);
-                /*if(flag && context != cStayMove0) {
-                    context = cStayMove0;
-                    std::fprintf(stderr, "several third positions used. Abort.\n");
-                    break;
-                }*/
                 if(flag > 0) {
                     context = (new_faces[k].ornt == 1) ? cStayMove1 : cStayMove2;
                     std::fprintf(stderr, "split position comes first.\n");
@@ -261,7 +249,7 @@ void CLOD_Mesh::update_resolution(BitStreamReader& reader)
                 }
             }
         }
-        std::fprintf(stderr, "%u faces moved.\n", move_faces.size());
+        std::fprintf(stderr, "%lu faces moved.\n", move_faces.size());
         for(unsigned int j = 0; j < move_faces.size(); j++) {
             Face& face = faces[move_faces[j]];
             Corner& corner = face.get_corner(split_position);
@@ -269,44 +257,60 @@ void CLOD_Mesh::update_resolution(BitStreamReader& reader)
                 uint8_t keep_change = reader[cDiffuseKeepChange].read<uint8_t>();
                 if(keep_change == 0x1) {
                     uint8_t change_type = reader[cDiffuseChangeType].read<uint8_t>();
+                    uint32_t new_index;
                     if(change_type == 0x1) {
-                        uint32_t new_index = reader[cDiffuseChangeIndexNew].read<uint32_t>();
+                        new_index = diffuse_colors.size() + reader[cDiffuseChangeIndexNew].read<uint32_t>();
                     } else if(change_type == 0x2) {
                         uint32_t local_index = reader[cDiffuseChangeIndexLocal].read<uint32_t>();
+                        std::vector<uint32_t> split_diffuse_colors = indexer.list_diffuse_colors(faces, split_position);
+                        new_index = split_diffuse_colors[local_index];
                     } else {
-                        uint32_t global_index = reader[cDiffuseChangeIndexGlobal].read<uint32_t>();
+                        new_index = reader[cDiffuseChangeIndexGlobal].read<uint32_t>();
                     }
+                    corner.diffuse = new_index;
                 }
             }
             if(shading_descs[face.shading_id].attributes & 0x00000002) {
                 uint8_t keep_change = reader[cSpecularKeepChange].read<uint8_t>();
                 if(keep_change == 0x1) {
                     uint8_t change_type = reader[cSpecularChangeType].read<uint8_t>();
+                    uint32_t new_index;
                     if(change_type == 0x1) {
-                        uint32_t new_index = reader[cSpecularChangeIndexNew].read<uint32_t>();
+                        new_index = specular_colors.size() + reader[cSpecularChangeIndexNew].read<uint32_t>();
                     } else if(change_type == 0x2) {
                         uint32_t local_index = reader[cSpecularChangeIndexLocal].read<uint32_t>();
+                        std::vector<uint32_t> split_specular_colors = indexer.list_specular_colors(faces, split_position);
+                        new_index = split_specular_colors[local_index];
                     } else {
-                        uint32_t global_index = reader[cSpecularChangeIndexGlobal].read<uint32_t>();
+                        new_index = reader[cSpecularChangeIndexGlobal].read<uint32_t>();
                     }
+                    corner.specular = new_index;
                 }
             }
             for(unsigned int k = 0; k < get_texlayer_count(face.shading_id); k++) {
                 uint8_t keep_change = reader[cTCKeepChange].read<uint8_t>();
                 if(keep_change == 0x1) {
                     uint8_t change_type = reader[cTCChangeType].read<uint8_t>();
+                    uint32_t new_index;
                     if(change_type == 0x1) {
-                        uint32_t new_index = reader[cTCChangeIndexNew].read<uint32_t>();
+                        new_index = texcoords.size() + reader[cTCChangeIndexNew].read<uint32_t>();
                     } else if(change_type == 0x2) {
                         uint32_t local_index = reader[cTCChangeIndexLocal].read<uint32_t>();
+                        std::vector<uint32_t> split_texcoords = indexer.list_texcoords(faces, shading_descs, split_position, k);
+                        new_index = split_texcoords[local_index];
                     } else {
-                        uint32_t global_index = reader[cTCChangeIndexGlobal].read<uint32_t>();
+                        new_index = reader[cTCChangeIndexGlobal].read<uint32_t>();
                     }
+                    corner.texcoord[k] = new_index;
                 }
             }
             face.get_corner(split_position).position = positions.size();
             indexer.move_position(move_faces[j], split_position, positions.size());
         }
+        std::fprintf(stderr, "Move Face completed.\n");
+        diffuse_colors.insert(diffuse_colors.end(), new_diffuse_colors.begin(), new_diffuse_colors.end());
+        specular_colors.insert(specular_colors.end(), new_specular_colors.begin(), new_specular_colors.end());
+        texcoords.insert(texcoords.end(), new_texcoords.begin(), new_texcoords.end());
         split_faces = indexer.list_faces(split_position);
         std::sort(split_faces.begin(), split_faces.end(), std::greater<uint32_t>());
         std::vector<uint32_t> split_diffuse_colors, split_specular_colors, split_texcoords[8];
@@ -324,6 +328,7 @@ void CLOD_Mesh::update_resolution(BitStreamReader& reader)
         for(int j = 0; j < 8; j++) {
             greater_unique_sort(split_texcoords[j]);
         }
+        std::fprintf(stderr, "Data acquired from split position.\n");
         for(unsigned int j = 0; j < new_face_count; j++) {
             std::vector<uint32_t> third_faces = indexer.list_faces(new_faces[j].corners[2].position);
             std::vector<uint32_t> third_diffuse_colors, third_specular_colors, third_texcoords[8];
@@ -440,17 +445,30 @@ void CLOD_Mesh::update_resolution(BitStreamReader& reader)
             std::vector<uint32_t> neighbors = indexer.list_inclusive_neighbors(faces, static_cast<uint32_t>(positions.size() - 1));
             print_vector(neighbors, "Neighbors");
             for(unsigned int j = 0; j < neighbors.size(); j++) {
+                std::vector<Vector3f> face_norms, new_norms;
+                std::vector<uint32_t> client_faces = indexer.list_faces(neighbors[j]);
+                for(auto i : client_faces) {
+                    Vector3f ba = positions[faces[i].corners[1].position] - positions[faces[i].corners[0].position];
+                    Vector3f ca = positions[faces[i].corners[2].position] - positions[faces[i].corners[0].position];
+                    Vector3f n0 = (ba ^ ca).normalize();
+                    face_norms.push_back(n0);
+                    std::fprintf(stderr, "Original face norm [%f %f %f]\n", n0.x, n0.y, n0.z);
+                }
                 uint32_t normal_count = reader[cNormalCnt].read<uint32_t>();
-                std::fprintf(stderr, "Neighbor %u : Normal Count = %u.\n", neighbors[j], normal_count);
+                std::fprintf(stderr, "Neighbor %u : Face Normal Count = %lu, Normal Count = %u.\n", neighbors[j], face_norms.size(), normal_count);
                 for(unsigned int k = 0; k < normal_count; k++) {
                     uint8_t normal_sign = reader[cDiffNormalSign].read<uint8_t>();
                     uint32_t normal_X = reader[cDiffNormalX].read<uint32_t>();
                     uint32_t normal_Y = reader[cDiffNormalY].read<uint32_t>();
                     uint32_t normal_Z = reader[cDiffNormalZ].read<uint32_t>();
 
-                    std::fprintf(stderr, "Normal %u %u %u %u\n", normal_sign, normal_X, normal_Y, normal_Z);
+                    new_norms[k].x += inverse_quant(normal_sign & 0x2, normal_X, normal_iq);
+                    new_norms[k].y += inverse_quant(normal_sign & 0x4, normal_Y, normal_iq);
+                    new_norms[k].z += inverse_quant(normal_sign & 0x8, normal_Z, normal_iq);
+
+                    std::fprintf(stderr, "Normal Diff [%u %u %u %u]\n", normal_sign, normal_X, normal_Y, normal_Z);
+                    std::fprintf(stderr, "New Normal [%f %f %f]\n", new_norms[k].x, new_norms[k].y, new_norms[k].z);
                 }
-                std::vector<uint32_t> client_faces = indexer.list_faces(neighbors[j]);
                 for(unsigned int k = 0; k < client_faces.size(); k++) {
                     uint32_t normal_index = reader[cNormalIdx].read<uint32_t>();
 
