@@ -156,10 +156,7 @@ void CLOD_Mesh::update_resolution(BitStreamReader& reader)
             uint32_t diffuse_blue = reader[cColorDiffB].read<uint32_t>();
             uint32_t diffuse_alpha = reader[cColorDiffA].read<uint32_t>();
 
-            new_diffuse_colors[j].r += inverse_quant(diffuse_sign & 0x1, diffuse_red, diffuse_iq);
-            new_diffuse_colors[j].g += inverse_quant(diffuse_sign & 0x2, diffuse_green, diffuse_iq);
-            new_diffuse_colors[j].b += inverse_quant(diffuse_sign & 0x4, diffuse_blue, diffuse_iq);
-            new_diffuse_colors[j].a += inverse_quant(diffuse_sign & 0x8, diffuse_alpha, diffuse_iq);
+            new_diffuse_colors[j] += Color4f::dequantize(diffuse_sign, diffuse_red, diffuse_green, diffuse_blue, diffuse_alpha, diffuse_iq);
 
             std::fprintf(stderr, "\tDiffuse [%f %f %f %f]\n", new_diffuse_colors[j].r, new_diffuse_colors[j].g, new_diffuse_colors[j].b, new_diffuse_colors[j].a);
         }
@@ -173,10 +170,7 @@ void CLOD_Mesh::update_resolution(BitStreamReader& reader)
             uint32_t specular_blue = reader[cColorDiffB].read<uint32_t>();
             uint32_t specular_alpha = reader[cColorDiffA].read<uint32_t>();
 
-            new_specular_colors[j].r += inverse_quant(specular_sign & 0x1, specular_red, specular_iq);
-            new_specular_colors[j].g += inverse_quant(specular_sign & 0x2, specular_green, specular_iq);
-            new_specular_colors[j].b += inverse_quant(specular_sign & 0x4, specular_blue, specular_iq);
-            new_specular_colors[j].a += inverse_quant(specular_sign & 0x8, specular_alpha, specular_iq);
+            new_specular_colors[j] += Color4f::dequantize(specular_sign, specular_red, specular_green, specular_blue, specular_alpha, specular_iq);
 
             std::fprintf(stderr, "\tSpecular [%f %f %f %f]\n", new_specular_colors[j].r, new_specular_colors[j].g, new_specular_colors[j].b, new_specular_colors[j].a);
         }
@@ -190,10 +184,7 @@ void CLOD_Mesh::update_resolution(BitStreamReader& reader)
             uint32_t texcoord_S = reader[cTexCDiffS].read<uint32_t>();
             uint32_t texcoord_T = reader[cTexCDiffT].read<uint32_t>();
 
-            new_texcoords[j].u += inverse_quant(texcoord_sign & 0x1, texcoord_U, texcoord_iq);
-            new_texcoords[j].v += inverse_quant(texcoord_sign & 0x2, texcoord_V, texcoord_iq);
-            new_texcoords[j].s += inverse_quant(texcoord_sign & 0x4, texcoord_S, texcoord_iq);
-            new_texcoords[j].t += inverse_quant(texcoord_sign & 0x8, texcoord_T, texcoord_iq);
+            new_texcoords[j] += TexCoord4f::dequantize(texcoord_sign, texcoord_U, texcoord_V, texcoord_S, texcoord_T, texcoord_iq);
 
             std::fprintf(stderr, "\tTexCoord [%f %f %f %f]\n", new_texcoords[j].u, new_texcoords[j].v, new_texcoords[j].s, new_texcoords[j].t);
         }
@@ -457,9 +448,7 @@ void CLOD_Mesh::update_resolution(BitStreamReader& reader)
         uint32_t pos_X = reader[cPosDiffX].read<uint32_t>();
         uint32_t pos_Y = reader[cPosDiffY].read<uint32_t>();
         uint32_t pos_Z = reader[cPosDiffZ].read<uint32_t>();
-        new_position.x += inverse_quant(pos_sign & 0x1, pos_X, position_iq);
-        new_position.y += inverse_quant(pos_sign & 0x2, pos_Y, position_iq);
-        new_position.z += inverse_quant(pos_sign & 0x4, pos_Z, position_iq);
+        new_position += Vector3f::dequantize(pos_sign, pos_X, pos_Y, pos_Z, position_iq);
         std::fprintf(stderr, "New Position [%u %u %u]\n", pos_X, pos_Y, pos_Z);
         std::fprintf(stderr, "New Position [%f %f %f]\n", new_position.x, new_position.y, new_position.z);
         positions.push_back(new_position);
@@ -524,10 +513,7 @@ void CLOD_Mesh::update_resolution(BitStreamReader& reader)
                     uint32_t normal_Y = reader[cDiffNormalY].read<uint32_t>();
                     uint32_t normal_Z = reader[cDiffNormalZ].read<uint32_t>();
 
-                    Quaternion4f normal_diff;
-                    normal_diff.x = inverse_quant(normal_sign & 0x2, normal_X, normal_iq);
-                    normal_diff.y = inverse_quant(normal_sign & 0x4, normal_Y, normal_iq);
-                    normal_diff.z = inverse_quant(normal_sign & 0x8, normal_Z, normal_iq);
+                    Quaternion4f normal_diff(Vector3f::dequantize(normal_sign >> 1, normal_X, normal_Y, normal_Z, normal_iq));
                     normal_diff.w = std::sqrt(1.0 - std::min(1.0f, normal_diff.x * normal_diff.x + normal_diff.y * normal_diff.y + normal_diff.z * normal_diff.z));
                     
                     new_norms[k] = normal_diff * Quaternion4f(new_norms[k]);

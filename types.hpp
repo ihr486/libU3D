@@ -8,6 +8,11 @@ namespace U3D
 
 template<typename T> struct Quaternion4;
 
+static inline float inverse_quant(bool sign, uint32_t val, float iq)
+{
+    return sign ? -iq * val : iq * val;
+}
+
 template<typename T> struct Vector3
 {
     T x, y, z;
@@ -36,6 +41,13 @@ template<typename T> struct Vector3
         return (*this) / size;
     }
     Vector3<T>& operator=(const Quaternion4<T>& q);
+    Vector3<T>& operator+=(const Vector3<T>& v) {
+        x += v.x, y += v.y, z += v.z;
+        return *this;
+    }
+    static Vector3<T> dequantize(uint8_t signs, uint32_t x, uint32_t y, uint32_t z, T iq) {
+        return Vector3<T>(inverse_quant(signs & 1, x, iq), inverse_quant(signs & 2, y, iq), inverse_quant(signs & 4, z, iq));
+    }
 };
 
 template<typename T> static inline Vector3<T> slerp(const Vector3<T>& a, const Vector3<T>& b, T t)
@@ -69,6 +81,10 @@ template<typename T> struct Color4
         return *this;
     }
     Color4() : r(0), g(0), b(0), a(0) {}
+    Color4(T r, T g, T b, T a) : r(r), g(g), b(b), a(a) {}
+    static Color4<T> dequantize(uint8_t signs, uint32_t r, uint32_t g, uint32_t b, uint32_t a, float iq) {
+        return Color4<T>(inverse_quant(signs & 1, r, iq), inverse_quant(signs & 2, g, iq), inverse_quant(signs & 4, b, iq), inverse_quant(signs & 8, a, iq));
+    }
 };
 
 template<typename T> struct Matrix4
@@ -110,6 +126,10 @@ template<typename T> struct TexCoord4
         return *this;
     }
     TexCoord4() : u(0), v(0), s(0), t(0) {}
+    TexCoord4(T u, T v, T s, T t) : u(u), v(v), s(s), t(t) {}
+    static TexCoord4<T> dequantize(uint8_t signs, uint32_t u, uint32_t v, uint32_t s, uint32_t t, float iq) {
+        return TexCoord4<T>(inverse_quant(signs & 1, u, iq), inverse_quant(signs & 2, v, iq), inverse_quant(signs & 4, s, iq), inverse_quant(signs & 8, t, iq));
+    }
 };
 
 typedef Vector3<float> Vector3f;
@@ -126,10 +146,5 @@ public:
     Modifier() {}
     virtual ~Modifier() {}
 };
-
-static inline float inverse_quant(bool sign, uint32_t val, float iq)
-{
-    return sign ? -iq * val : iq * val;
-}
 
 }
