@@ -1,5 +1,7 @@
 #include "bitstream.hpp"
 
+#include <stdlib.h>
+
 namespace U3D
 {
 

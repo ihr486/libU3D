@@ -9,6 +9,7 @@
 #include "types.hpp"
 #include "bitstream.hpp"
 #include "mesh.hpp"
+#include "pointset.hpp"
 
 namespace U3D
 {
@@ -205,7 +206,11 @@ public:
                 std::fprintf(stderr, "\tCLOD Mesh \"%s\"\n", name.c_str());
                 break;
             case 0xFFFFFF36:    //Point Set Declaration
+                (*this)[i] = new PointSet(reader);
+                break;
             case 0xFFFFFF37:    //Line Set Declaration
+                //(*this)[i] = new LineSet(reader);
+                break;
             case 0xFFFFFF41:    //2D Glyph Modifier Block
             case 0xFFFFFF42:    //Subdivision Modifier Block
             case 0xFFFFFF43:    //Animation Modifier Block

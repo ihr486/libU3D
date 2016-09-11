@@ -6,42 +6,13 @@
 
 #include "types.hpp"
 #include "bitstream.hpp"
+#include "clod_common.hpp"
 
 namespace U3D
 {
 
-class CLOD_Mesh : public Modifier
+class CLOD_Mesh : private CLOD_Object, public Modifier
 {
-    //Maximum mesh description
-    uint32_t attributes;
-    uint32_t face_count, position_count, normal_count;
-    uint32_t diffuse_count, specular_count, texcoord_count;
-    struct ShadingDesc {
-        uint32_t attributes;
-        std::vector<uint32_t> texcoord_dims;
-    };
-    std::vector<ShadingDesc> shading_descs;
-    //CLoD description
-    uint32_t min_res, max_res;
-    //Quality factors
-    uint32_t position_quality, normal_quality, texcoord_quality;
-    //Inverse quantization parameters
-    float position_iq, normal_iq, texcoord_iq, diffuse_iq, specular_iq;
-    //Resource parameters
-    float normal_crease, normal_update, normal_tolerance;
-    //Skeleton description
-    struct Bone {
-        std::string name, parent_name;
-        uint32_t attributes;
-        float length;
-        Vector3f displacement;
-        Quaternion4f orientation;
-        uint32_t link_count;
-        float link_length;
-        Vector2f start_joint_center, start_joint_scale;
-        Vector2f end_joint_center, end_joint_scale;
-    };
-    std::vector<Bone> skeleton;
     //Mesh contents
     std::vector<Vector3f> positions, normals;
     std::vector<Color4f> diffuse_colors, specular_colors;

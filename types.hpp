@@ -1,8 +1,5 @@
 #pragma once
 
-#include <iostream>
-#include <vector>
-#include <algorithm>
 #include <cmath>
 #include <stdint.h>
 
@@ -133,36 +130,6 @@ public:
 static inline float inverse_quant(bool sign, uint32_t val, float iq)
 {
     return sign ? -iq * val : iq * val;
-}
-
-template<typename T> static inline void insert_unique(std::vector<T>& cont, T val)
-{
-    typename std::vector<T>::iterator i;
-    for(i = cont.begin(); i != cont.end(); i++) {
-        if(*i == val) return;
-        else if(*i < val) {
-            cont.insert(i, val);
-            return;
-        }
-    }
-    if(i == cont.end()) {
-        cont.push_back(val);
-    }
-}
-
-template<typename T> static inline void greater_unique_sort(std::vector<T>& cont)
-{
-    std::sort(cont.begin(), cont.end(), std::greater<T>());
-    cont.erase(std::unique(cont.begin(), cont.end()), cont.end());
-}
-
-template<typename T> static inline void print_vector(const std::vector<T>& v, const std::string& name)
-{
-    std::cerr << name << " : ";
-    for(typename std::vector<T>::const_iterator i = v.begin(); i != v.end(); i++) {
-        std::cerr << *i << " ";
-    }
-    std::cerr << std::endl;
 }
 
 }

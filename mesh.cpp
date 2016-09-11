@@ -5,7 +5,7 @@
 namespace U3D
 {
 
-CLOD_Mesh::CLOD_Mesh(BitStreamReader& reader)
+CLOD_Object::CLOD_Object(BitStreamReader& reader)
 {
     reader.read<uint32_t>();    //Chain index is always zero.
     reader >> attributes >> face_count >> position_count >> normal_count;
@@ -41,6 +41,10 @@ CLOD_Mesh::CLOD_Mesh(BitStreamReader& reader)
             reader.read<float>();   //Skip past the rotation constraints
         }
     }
+}
+
+CLOD_Mesh::CLOD_Mesh(BitStreamReader& reader) : CLOD_Object(reader)
+{
     cur_res = 0;
     for(int i = 0; i < 3; i++) {
         for(int j = 0; j < 8; j++) {
