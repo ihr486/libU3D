@@ -471,6 +471,16 @@ public:
                     }
                 }
                 break;
+            case 0xFFFFFF3E:    //Point Set Continuation
+                name = reader.read_str();
+                if(models[name] != NULL) {
+                    PointSet *decl = dynamic_cast<PointSet *>(models[name]->front());
+                    if(decl != NULL) {
+                        decl->update_resolution(reader);
+                        std::fprintf(stderr, "Point Set Continuation \"%s\"\n", name.c_str());
+                    }
+                }
+                break;
             default:
                 if(0x00000100 <= reader.get_type() && reader.get_type() <= 0x00FFFFFF) {
                     std::fprintf(stderr, "New Object block [%08X] is not supported in the current version.\n", reader.get_type());

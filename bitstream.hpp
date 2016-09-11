@@ -19,7 +19,7 @@ enum ContextEnum {
     cSpecularChangeIndexGlobal, cTCKeepChange, cTCChangeType, cTCChangeIndexNew, cTCChangeIndexLocal, cTCChangeIndexGlobal,
     cColorDup, cColorIndexType, cColorIndexLocal, cColorIndexGlobal, cTexCDup, cTexCIndexType, cTextureIndexLocal,
     cTextureIndexGlobal, cPosDiffSign, cPosDiffX, cPosDiffY, cPosDiffZ, cNormalCnt, cDiffNormalSign, cDiffNormalX, cDiffNormalY,
-    cDiffNormalZ, cNormalIdx, NumContexts
+    cDiffNormalZ, cNormalIdx, cPointCnt, cDiffDup, cSpecDup, NumContexts
 };
 
 class BitStreamReader
