@@ -3,7 +3,7 @@
 namespace U3D
 {
 
-PointSet::PointSet(BitStreamReader& reader) : CLOD_Object(reader)
+PointSet::PointSet(BitStreamReader& reader) : CLOD_Object(false, reader)
 {
     last_diffuse = 0, last_specular = 0;
     for(int i = 0; i < 8; i++) last_texcoord[i] = 0;
@@ -108,7 +108,7 @@ void PointSet::update_resolution(BitStreamReader& reader)
     }
 }
 
-LineSet::LineSet(BitStreamReader& reader) : CLOD_Object(reader)
+LineSet::LineSet(BitStreamReader& reader) : CLOD_Object(false, reader)
 {
     last_diffuse = 0, last_specular = 0;
     for(int i = 0; i < 8; i++) last_texcoord[i] = 0;

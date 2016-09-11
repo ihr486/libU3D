@@ -47,7 +47,7 @@ protected:
     std::vector<Color4f> diffuse_colors, specular_colors;
     std::vector<TexCoord4f> texcoords;
 public:
-    CLOD_Object(BitStreamReader& reader);
+    CLOD_Object(bool clod_desc_flag, BitStreamReader& reader);
 protected:
     uint32_t get_texlayer_count(uint32_t shading_id) const
     {

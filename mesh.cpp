@@ -5,7 +5,7 @@
 namespace U3D
 {
 
-CLOD_Object::CLOD_Object(BitStreamReader& reader)
+CLOD_Object::CLOD_Object(bool clod_desc_flag, BitStreamReader& reader)
 {
     reader.read<uint32_t>();    //Chain index is always zero.
     reader >> attributes >> face_count >> position_count >> normal_count;
@@ -18,15 +18,17 @@ CLOD_Object::CLOD_Object(BitStreamReader& reader)
     for(unsigned int i = 0; i < shading_count; i++) {
         shading_descs[i].attributes = reader.read<uint32_t>();
         uint32_t texlayer_count = reader.read<uint32_t>();
-        std::fprintf(stderr, "Shading #%u: Attribute = %u, TexLayer count = %u.\n", shading_descs[i].attributes, texlayer_count);
+        std::fprintf(stderr, "Shading #%u: Attribute = %u, TexLayer count = %u.\n", i, shading_descs[i].attributes, texlayer_count);
         shading_descs[i].texcoord_dims.resize(texlayer_count);
         for(unsigned int j = 0; j < texlayer_count; j++) {
             shading_descs[i].texcoord_dims[j] = reader.read<uint32_t>();
         }
         reader.read<uint32_t>();
     }
-    reader >> min_res >> max_res;
-    std::fprintf(stderr, "Min Res = %u, Max Res = %u.\n", min_res, max_res);
+    if(clod_desc_flag) {
+        reader >> min_res >> max_res;
+        std::fprintf(stderr, "Min Res = %u, Max Res = %u.\n", min_res, max_res);
+    }
     reader >> position_quality >> normal_quality >> texcoord_quality;
     reader >> position_iq >> normal_iq >> texcoord_iq >> diffuse_iq >> specular_iq;
     reader >> normal_crease >> normal_update >> normal_tolerance;
@@ -49,7 +51,7 @@ CLOD_Object::CLOD_Object(BitStreamReader& reader)
     }
 }
 
-CLOD_Mesh::CLOD_Mesh(BitStreamReader& reader) : CLOD_Object(reader)
+CLOD_Mesh::CLOD_Mesh(BitStreamReader& reader) : CLOD_Object(true, reader)
 {
     cur_res = 0;
     for(int i = 0; i < 3; i++) {

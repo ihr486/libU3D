@@ -207,9 +207,11 @@ public:
                 break;
             case 0xFFFFFF36:    //Point Set Declaration
                 (*this)[i] = new PointSet(reader);
+                std::fprintf(stderr, "\tPoint Set \"%s\"\n", name.c_str());
                 break;
             case 0xFFFFFF37:    //Line Set Declaration
                 (*this)[i] = new LineSet(reader);
+                std::fprintf(stderr, "\tLine Set \"%s\"\n", name.c_str());
                 break;
             case 0xFFFFFF41:    //2D Glyph Modifier Block
             case 0xFFFFFF42:    //Subdivision Modifier Block
@@ -448,6 +450,13 @@ public:
             case 0xFFFFFF56:    //Motion Declaration
                 break;
             case 0xFFFFFF5C:    //Texture Continuation
+                name = reader.read_str();
+                if(textures[name] != NULL) {
+                    Texture *decl = dynamic_cast<Texture *>(textures[name]);
+                    if(decl != NULL) {
+                        std::fprintf(stderr, "Texture Continuation \"%s\"\n", name.c_str());
+                    }
+                }
                 break;
             case 0xFFFFFF3B:    //CLOD Base Mesh Continuation
                 name = reader.read_str();
