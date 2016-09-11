@@ -16,9 +16,6 @@ class PointSet : private CLOD_Object, public Modifier
         uint32_t diffuse, specular;
     };
     std::vector<Point> points;
-    std::vector<Vector3f> positions, normals;
-    std::vector<Color4f> diffuse_colors, specular_colors;
-    std::vector<TexCoord4f> texcoords;
     class PointIndexer
     {
         std::vector<uint32_t> positions;
@@ -35,10 +32,25 @@ class PointSet : private CLOD_Object, public Modifier
 public:
     PointSet(BitStreamReader& reader);
     void update_resolution(BitStreamReader& reader);
-private:
-    unsigned int get_texlayer_count(uint32_t shading_id) {
-        return shading_descs[shading_id].texcoord_dims.size();
-    }
+};
+
+class LineSet : private CLOD_Object, public Modifier
+{
+    struct Line
+    {
+        uint32_t shading_id;
+        uint32_t position, normal, texcoord[8];
+        uint32_t diffuse, specular;
+    };
+    std::vector<Line> lines;
+    class LineIndexer
+    {
+    public:
+    };
+    LineIndexer indexer;
+public:
+    LineSet(BitStreamReader& reader);
+    void update_resolution(BitStreamReader& reader);
 };
 
 }

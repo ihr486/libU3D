@@ -43,8 +43,16 @@ protected:
         Vector2f end_joint_center, end_joint_scale;
     };
     std::vector<Bone> skeleton;
+    std::vector<Vector3f> positions, normals;
+    std::vector<Color4f> diffuse_colors, specular_colors;
+    std::vector<TexCoord4f> texcoords;
 public:
     CLOD_Object(BitStreamReader& reader);
+protected:
+    uint32_t get_texlayer_count(uint32_t shading_id) const
+    {
+        return shading_descs[shading_id].texcoord_dims.size();
+    }
 };
 
 template<typename T> static inline void insert_unique(std::vector<T>& cont, T val)

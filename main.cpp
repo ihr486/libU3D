@@ -9,7 +9,7 @@
 #include "types.hpp"
 #include "bitstream.hpp"
 #include "mesh.hpp"
-#include "pointset.hpp"
+#include "plset.hpp"
 
 namespace U3D
 {
@@ -209,7 +209,7 @@ public:
                 (*this)[i] = new PointSet(reader);
                 break;
             case 0xFFFFFF37:    //Line Set Declaration
-                //(*this)[i] = new LineSet(reader);
+                (*this)[i] = new LineSet(reader);
                 break;
             case 0xFFFFFF41:    //2D Glyph Modifier Block
             case 0xFFFFFF42:    //Subdivision Modifier Block
@@ -478,6 +478,16 @@ public:
                     if(decl != NULL) {
                         decl->update_resolution(reader);
                         std::fprintf(stderr, "Point Set Continuation \"%s\"\n", name.c_str());
+                    }
+                }
+                break;
+            case 0xFFFFFF3F:    //Line Set Continuation
+                name = reader.read_str();
+                if(models[name] != NULL) {
+                    LineSet *decl = dynamic_cast<LineSet *>(models[name]->front());
+                    if(decl != NULL) {
+                        decl->update_resolution(reader);
+                        std::fprintf(stderr, "Line Set Continuation \"%s\"\n", name.c_str());
                     }
                 }
                 break;

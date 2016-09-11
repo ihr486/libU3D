@@ -1,4 +1,4 @@
-#include "pointset.hpp"
+#include "plset.hpp"
 
 namespace U3D
 {
@@ -96,6 +96,14 @@ void PointSet::update_resolution(BitStreamReader& reader)
             points.push_back(new_point);
         }
     }
+}
+
+LineSet::LineSet(BitStreamReader& reader) : CLOD_Object(reader)
+{
+}
+
+void LineSet::update_resolution(BitStreamReader& reader)
+{
 }
 
 }

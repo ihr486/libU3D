@@ -145,10 +145,6 @@ class CLOD_Mesh : private CLOD_Object, public Modifier
     FaceIndexer indexer;
 public:
     CLOD_Mesh(BitStreamReader& reader);
-    uint32_t get_texlayer_count(uint32_t shading_id) const
-    {
-        return shading_descs[shading_id].texcoord_dims.size();
-    }
     void create_base_mesh(BitStreamReader& reader);
     void update_resolution(BitStreamReader& reader);
     void dump_author_mesh();
