@@ -80,6 +80,9 @@ template<typename T> struct Color4
         r /= val, g /= val, b /= val, a /= val;
         return *this;
     }
+    Color4<T> operator+(const Color4<T>& c) {
+        return Color4<T>(r + c.r, g + c.g, b + c.b, a + c.a);
+    }
     Color4() : r(0), g(0), b(0), a(0) {}
     Color4(T r, T g, T b, T a) : r(r), g(g), b(b), a(a) {}
     static Color4<T> dequantize(uint8_t signs, uint32_t r, uint32_t g, uint32_t b, uint32_t a, float iq) {
@@ -124,6 +127,9 @@ template<typename T> struct TexCoord4
     TexCoord4<T>& operator/=(T val) {
         u /= val, v /= val, s /= val, t /= val;
         return *this;
+    }
+    TexCoord4<T> operator+(const TexCoord4<T>& c) {
+        return TexCoord4<T>(u + c.u, v + c.v, s + c.s, t + c.t);
     }
     TexCoord4() : u(0), v(0), s(0), t(0) {}
     TexCoord4(T u, T v, T s, T t) : u(u), v(v), s(s), t(t) {}
