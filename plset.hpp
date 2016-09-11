@@ -36,11 +36,15 @@ public:
 
 class LineSet : private CLOD_Object, public Modifier
 {
+    struct Terminal
+    {
+        uint32_t position, normal, texcoord[8];
+        uint32_t diffuse, specular;
+    };
     struct Line
     {
         uint32_t shading_id;
-        uint32_t position, normal, texcoord[8];
-        uint32_t diffuse, specular;
+        Terminal terminals[2];
     };
     std::vector<Line> lines;
     class LineIndexer
@@ -48,6 +52,8 @@ class LineSet : private CLOD_Object, public Modifier
     public:
     };
     LineIndexer indexer;
+
+    uint32_t last_diffuse, last_specular, last_texcoord;
 public:
     LineSet(BitStreamReader& reader);
     void update_resolution(BitStreamReader& reader);
