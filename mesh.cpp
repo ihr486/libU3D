@@ -71,6 +71,7 @@ void CLOD_Mesh::create_base_mesh(BitStreamReader& reader)
         std::fprintf(stderr, "Base mesh is already set up.\n");
         return;
     }
+    std::fprintf(stderr, "%u faces, %u positions, %u normals, %u diffuses, %u speculars, %u texcoords\n", face_count, position_count, normal_count, diffuse_count, specular_count, texcoord_count);
     positions.resize(position_count);
     for(unsigned int i = 0; i < position_count; i++) reader >> positions[i];
     indexer.add_positions(position_count);
@@ -85,10 +86,13 @@ void CLOD_Mesh::create_base_mesh(BitStreamReader& reader)
     faces.resize(face_count);
     for(unsigned int i = 0; i < face_count; i++) {
         reader[cShading] >> faces[i].shading_id;
+        //std::fprintf(stderr, "Shading ID = %u.\n", faces[i].shading_id);
         for(int j = 0; j < 3; j++) {
             reader[position_count] >> faces[i].corners[j].position;
+            //std::fprintf(stderr, "Corner #%u: Position = %u.\n", j, faces[i].corners[j].position);
             if(!(attributes & 0x00000001)) {
                 reader[normal_count] >> faces[i].corners[j].normal;
+                //std::fprintf(stderr, "\tNormal = %u.\n", faces[i].corners[j].normal);
             }
             if(shading_descs[faces[i].shading_id].attributes & 0x00000001) {
                 reader[diffuse_count] >> faces[i].corners[j].diffuse;

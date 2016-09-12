@@ -194,6 +194,8 @@ public:
                 } else {
                     return static_cast<T>(symbol - 1);
                 }
+            } else if(context == 0x3FFF) {
+                return reader.read<T>();
             } else {
                 uint32_t symbol = reader.read_dynamic_symbol(context - 0x4000);
                 if(symbol == 0) {
@@ -216,7 +218,7 @@ public:
         if(context < 0x3FFF) {
             return ContextAdapter(*this, context);
         } else {
-            return ContextAdapter(*this, 256);
+            return ContextAdapter(*this, 0x3FFF);
         }
     }
     ContextAdapter operator[](ContextEnum context)
