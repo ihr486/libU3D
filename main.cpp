@@ -10,6 +10,7 @@
 #include "bitstream.hpp"
 #include "mesh.hpp"
 #include "plset.hpp"
+#include "texture.hpp"
 
 namespace U3D
 {
@@ -326,35 +327,6 @@ public:
     }
 };
 
-class Texture
-{
-    uint32_t width, height;
-    uint8_t type;
-    struct Continuation
-    {
-        uint8_t compression_type, channels;
-        uint16_t attributes;
-        uint32_t byte_count;
-    };
-    std::vector<Continuation> continuations;
-public:
-    Texture(BitStreamReader& reader)
-    {
-        reader >> height >> width >> type;
-        uint32_t continuation_count = reader.read<uint32_t>();
-        continuations.resize(continuation_count);
-        for(unsigned int i = 0; i < continuation_count; i++) {
-            reader >> continuations[i].compression_type >> continuations[i].channels >> continuations[i].attributes;
-            if(continuations[i].attributes & 0x0001) {
-                std::fprintf(stderr, "External texture reference is not implemented in the current version.\n");
-                return;
-            } else {
-                reader >> continuations[i].byte_count;
-            }
-        }
-    }
-};
-
 class NodeModifierChain : public Node, public ModifierChain
 {
 public:
@@ -454,6 +426,7 @@ public:
                 if(textures[name] != NULL) {
                     Texture *decl = dynamic_cast<Texture *>(textures[name]);
                     if(decl != NULL) {
+                        decl->load_continuation(reader);
                         std::fprintf(stderr, "Texture Continuation \"%s\"\n", name.c_str());
                     }
                 }

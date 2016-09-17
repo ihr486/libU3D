@@ -25,7 +25,7 @@ const uint8_t BitStreamReader::bit_reverse_table[256] =
     0x0F, 0x8F, 0x4F, 0xCF, 0x2F, 0xAF, 0x6F, 0xEF, 0x1F, 0x9F, 0x5F, 0xDF, 0x3F, 0xBF, 0x7F, 0xFF
 };
 
-BitStreamReader::BitStreamReader(const std::string& filename) : bit_position(0), high(0xFFFF), low(0), underflow(0)
+BitStreamReader::BitStreamReader(const std::string& filename) : bit_position(0), high(0xFFFF), low(0), underflow(0), data_buffer(NULL), metadata_buffer(NULL)
 {
     ifs.open(filename.c_str(), std::ios::in);
     if(!ifs.is_open()) {
@@ -37,25 +37,19 @@ BitStreamReader::BitStreamReader(const std::string& filename) : bit_position(0),
 
 bool BitStreamReader::open_block()
 {
-    /*if(data_buffer.size() < 4) data_buffer.resize(4);
-    ifs.read(reinterpret_cast<char *>(data_buffer.data()), 12);
-    bit_position = 0;
-    type = read<uint32_t>();
-    uint32_t data_size = (read<uint32_t>() + 3) / 4;
-    uint32_t metadata_size = (read<uint32_t>() + 3) / 4;
-    std::fprintf(stderr, "Block opened: %08X-%u/%u\n", type, data_size, metadata_size);*/
     reset();
     type = read_word_direct();
     if(ifs.eof()) return false;
-    uint32_t data_size = (read_word_direct() + 3) / 4;
-    uint32_t metadata_size = (read_word_direct() + 3) / 4;
-    std::fprintf(stderr, "Opening block : Type = 0x%08X, Data Size = %u, Metadata Size = %u.\n", type, data_size, metadata_size);
-    data_buffer.resize(data_size + 1);
-    metadata_buffer.resize(metadata_size + 1);
-    ifs.read(reinterpret_cast<char *>(data_buffer.data()), 4 * data_size);
-    ifs.read(reinterpret_cast<char *>(metadata_buffer.data()), 4 * metadata_size);
-    data_buffer[data_size] = 0;
-    metadata_buffer[metadata_size] = 0;
+    data_size = read_word_direct();
+    metadata_size = read_word_direct();
+    if(data_buffer != NULL) delete[] data_buffer;
+    if(metadata_buffer != NULL) delete[] metadata_buffer;
+    data_buffer = new uint32_t[(data_size + 3) / 4 + 1];
+    metadata_buffer = new uint32_t[(metadata_size + 3) / 4];
+    ifs.read(reinterpret_cast<char *>(data_buffer), (data_size + 3) / 4 * 4);
+    ifs.read(reinterpret_cast<char *>(metadata_buffer), (metadata_size + 3) / 4 * 4);
+    data_buffer[(data_size + 3) / 4] = 0;
+    metadata_buffer[(metadata_size + 3) / 4] = 0;
     bit_position = 0;
     std::fprintf(stderr, "Block opened : Type = 0x%08X, Data Size = %u, Metadata Size = %u.\n", type, data_size, metadata_size);
     return true;
@@ -133,7 +127,7 @@ uint32_t BitStreamReader::read_dynamic_symbol(uint32_t context)
         underflow++;
     }
     bit_position += bit_count;
-    if(bit_position >= 32 * data_buffer.size()) {
+    if(bit_position >= 8 * data_size) {
         std::fprintf(stderr, "Data buffer overrun.\n");
         exit(0);
     }

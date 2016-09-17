@@ -4,6 +4,7 @@
 #include <iostream>
 #include <fstream>
 #include <vector>
+#include <string.h>
 
 #include "types.hpp"
 
@@ -106,7 +107,8 @@ private:
     std::ifstream ifs;
     size_t bit_position;
     uint32_t high, low, underflow, type;
-    std::vector<uint32_t> data_buffer, metadata_buffer;
+    uint32_t data_size, metadata_size;
+    uint32_t *data_buffer, *metadata_buffer;
     static const uint8_t bit_reverse_table[256];
     DynamicContext dynamic_contexts[NumContexts];
 private:
@@ -118,6 +120,11 @@ private:
     }
 public:
     BitStreamReader(const std::string& filename);
+    ~BitStreamReader()
+    {
+        if(data_buffer != NULL) delete[] data_buffer;
+        if(metadata_buffer != NULL) delete[] metadata_buffer;
+    }
     bool open_block();
     template<typename T> T read()
     {
@@ -178,6 +185,13 @@ public:
     {
         uint32_t symbol = read_static_symbol(256);
         return bit_reverse_table[symbol - 1];
+    }
+    uint32_t read_remainder(void *ptr, uint32_t n)
+    {
+        uint32_t size = data_size - (bit_position + 7) / 8;
+        if(size > n) size = n;
+        memcpy(ptr, (uint8_t *)data_buffer + ((bit_position + 7) / 8), size);
+        return size;
     }
     class ContextAdapter
     {
