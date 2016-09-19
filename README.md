@@ -24,8 +24,7 @@ Which version of libtiff to use?
 ## Implementation status
 Implementation is not complete.
 ### CLOD mesh generator
-The current version of the library is able to decode both Base and Progressive meshes.
-However, it is confirmed that very large base mesh will cause a segmentation fault.
+The current version of the library is able to decode both Base and Progressive meshes, in addition to PointSet and LineSet.
 ### Texture
 Texture decoder is being written as the last module to be added.
 With texture support, the parser itself will be complete.

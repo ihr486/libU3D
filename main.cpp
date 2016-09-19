@@ -6,11 +6,14 @@
 #include <vector>
 #include <map>
 
+#include <SDL.h>
+
 #include "types.hpp"
 #include "bitstream.hpp"
 #include "mesh.hpp"
 #include "plset.hpp"
 #include "texture.hpp"
+#include "viewer.hpp"
 
 namespace U3D
 {
@@ -496,6 +499,16 @@ public:
 
 }
 
+void __attribute__((noreturn)) abort_with_msg(const char *msg)
+{
+    std::fprintf(stderr, "%s\n", msg);
+    exit(0);
+}
+
+#define STR2(x) #x
+#define STR(x) STR2(x)
+#define ERROR(msg) abort_with_msg(STR(__FILE__) ":" STR(__LINE__) ";" msg "\n")
+
 int main(int argc, char * const argv[])
 {
     std::printf("Universal 3D loader v0.1a\n");
@@ -505,9 +518,46 @@ int main(int argc, char * const argv[])
         return 1;
     }
 
-    U3D::U3DContext context(argv[1]);
+    U3D::U3DContext model(argv[1]);
 
     std::fprintf(stderr, "%s successfully parsed.\n", argv[1]);
+
+    if(SDL_Init(SDL_INIT_VIDEO) < 0) {
+        ERROR("Failed to initialize SDL2.");
+    }
+
+    SDL_Window *window = SDL_CreateWindow("Universal 3D testbed", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, 480, 360, SDL_WINDOW_OPENGL | SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE);
+    if(window == NULL) {
+        ERROR("Failed to create an SDL2 window.");
+    }
+
+    SDL_GLContext context = SDL_GL_CreateContext(window);
+    if(context == NULL) {
+        ERROR("Failed to create an OpenGL context.");
+    }
+
+    {
+        Viewer viewer;
+
+        SDL_Event event;
+        do {
+            while(SDL_PollEvent(&event)) {
+                if(event.type == SDL_QUIT) {
+                    break;
+                }
+                if(event.type == SDL_WINDOWEVENT) {
+                    if(event.window.event == SDL_WINDOWEVENT_RESIZED) {
+                        viewer.resize(event.window.data1, event.window.data2);
+                    }
+                }
+            }
+            viewer.render();
+
+            SDL_GL_SwapWindow(window);
+        } while(event.type != SDL_QUIT);
+    }
+
+    SDL_Quit();
     
     return 0;
 }

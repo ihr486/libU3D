@@ -6,8 +6,8 @@ CXXOBJS := $(CXXSRCS:%.cpp=%.o)
 OBJS := $(CXXOBJS)
 
 CXX := g++
-CXXFLAGS := -Wall -Wextra -std=c++03 -O2
-LDFLAGS := -lm
+CXXFLAGS := -Wall -Wextra -std=c++03 -O2 $(shell sdl2-config --cflags) $(shell pkg-config --cflags glew)
+LDFLAGS := -lm $(shell sdl2-config --libs) -lSDL2_image $(shell pkg-config --libs glew)
 
 BIN := u3d
 
