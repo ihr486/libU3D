@@ -526,7 +526,7 @@ void CLOD_Mesh::update_resolution(BitStreamReader& reader)
                     uint32_t normal_Z = reader[cDiffNormalZ].read<uint32_t>();
 
                     Quaternion4f normal_diff(Vector3f::dequantize(normal_sign >> 1, normal_X, normal_Y, normal_Z, normal_iq));
-                    normal_diff.w = std::sqrt(1.0 - std::min(1.0f, normal_diff.x * normal_diff.x + normal_diff.y * normal_diff.y + normal_diff.z * normal_diff.z));
+                    normal_diff.w = sqrtf(1.0 - std::min(1.0f, normal_diff.x * normal_diff.x + normal_diff.y * normal_diff.y + normal_diff.z * normal_diff.z));
                     
                     new_norms[k] = normal_diff * Quaternion4f(new_norms[k]);
 
