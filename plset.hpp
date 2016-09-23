@@ -7,7 +7,7 @@
 namespace U3D
 {
 
-class PointSet : private CLOD_Object, public Modifier
+class PointSet : private CLOD_Object, public ModelResource
 {
     struct Point
     {
@@ -22,7 +22,7 @@ public:
     void update_resolution(BitStreamReader& reader);
 };
 
-class LineSet : private CLOD_Object, public Modifier
+class LineSet : private CLOD_Object, public ModelResource
 {
     struct Terminal
     {

@@ -288,7 +288,7 @@ void CLOD_Mesh::update_resolution(BitStreamReader& reader)
                 }
             }
         }
-        std::fprintf(stderr, "%lu faces moved.\n", move_faces.size());
+        std::fprintf(stderr, "%u faces moved.\n", move_faces.size());
         for(unsigned int j = 0; j < move_faces.size(); j++) {
             Face& face = faces[move_faces[j]];
             Corner& corner = face.get_corner(split_position);
@@ -518,7 +518,7 @@ void CLOD_Mesh::update_resolution(BitStreamReader& reader)
                 for(std::vector<Vector3f>::iterator k = new_norms.begin(); k != new_norms.end(); k++) {
                     std::fprintf(stderr, "Merged norm [%f %f %f]\n", k->x, k->y, k->z);
                 }
-                std::fprintf(stderr, "Neighbor %u : Face Normal Count = %lu, Normal Count = %u.\n", neighbors[j], face_norms.size(), normal_count);
+                std::fprintf(stderr, "Neighbor %u : Face Normal Count = %u, Normal Count = %u.\n", neighbors[j], face_norms.size(), normal_count);
                 for(unsigned int k = 0; k < normal_count; k++) {
                     uint8_t normal_sign = reader[cDiffNormalSign].read<uint8_t>();
                     uint32_t normal_X = reader[cDiffNormalX].read<uint32_t>();

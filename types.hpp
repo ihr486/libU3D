@@ -168,11 +168,4 @@ struct TexCoord4f
     }
 };
 
-class Modifier
-{
-public:
-    Modifier() {}
-    virtual ~Modifier() {}
-};
-
 }

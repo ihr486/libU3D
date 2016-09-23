@@ -5,9 +5,22 @@ HDRS := $(wildcard *.hpp)
 CXXOBJS := $(CXXSRCS:%.cpp=%.o)
 OBJS := $(CXXOBJS)
 
-CXX := g++
-CXXFLAGS := -Wall -Wextra -std=c++03 -O2 $(shell sdl2-config --cflags) $(shell pkg-config --cflags glew)
-LDFLAGS := -lm $(shell sdl2-config --libs) -lSDL2_image $(shell pkg-config --libs glew)
+EMULATOR := $(shell uname -o)
+PROCESSOR := $(shell uname -m)
+ifeq ($(EMULATOR),Cygwin)
+ifeq ($(PROCESSOR),i686)
+CXX := i686-w64-mingw32-g++
+PKGCONFIG := i686-w64-mingw32-pkg-config
+else
+CXX := x86_64-w64-mingw32-g++
+PKGCONFIG := x86_64-w64-mingw32-pkg-config
+endif
+CXXFLAGS := -Wall -Wextra -std=c++03 -O2 $(shell $(PKGCONFIG) --cflags sdl2 glew)
+LDFLAGS := -lm $(shell $(PKGCONFIG) --libs sdl2 SDL2_image glew) -lopengl32
+else
+CXXFLAGS := -Wall -Wextra -std=c++03 -O2 $(shell pkg-config sdl2 glew)
+LDFLAGS := -lm $(shell pkg-config --libs sdl2 glew) -lSDL2_image
+endif
 
 BIN := u3d
 

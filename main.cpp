@@ -66,7 +66,7 @@ public:
     virtual ~Node() {}
 };
 
-class Group : public Node, public Modifier
+class Group : public Node
 {
 public:
     Group(BitStreamReader& reader)
@@ -75,7 +75,7 @@ public:
     }
 };
 
-class View : public Node, public Modifier
+class View : public Node
 {
     std::string resource_name;
     uint32_t attributes;
@@ -121,11 +121,10 @@ public:
             reader >> backdrops[i].texture_name >> backdrops[i].blend >> backdrops[i].location_x >> backdrops[i].location_y;
             reader >> backdrops[i].reg_x >> backdrops[i].reg_y >> backdrops[i].scale_x >> backdrops[i].scale_y;
         }
-
     }
 };
 
-class Model : public Node, public Modifier
+class Model : public Node
 {
     std::string resource_name;
     uint32_t visibility;
@@ -137,7 +136,7 @@ public:
     }
 };
 
-class Light : public Node, public Modifier
+class Light : public Node
 {
     std::string resource_name;
 public:
@@ -145,100 +144,6 @@ public:
     {
         Node::read(reader);
         reader >> resource_name;
-    }
-};
-
-class Shading : public Modifier
-{
-    uint32_t chain_index, attributes;
-    std::vector<std::vector<std::string> > shader_names;
-public:
-    Shading(BitStreamReader& reader)
-    {
-        reader >> chain_index >> attributes;
-        uint32_t list_count = reader.read<uint32_t>();
-        shader_names.resize(list_count);
-        for(unsigned int i = 0; i < list_count; i++) {
-            uint32_t shader_count = reader.read<uint32_t>();
-            shader_names[i].resize(shader_count);
-            for(unsigned int j = 0; j < shader_count; j++) {
-                reader >> shader_names[i][j];
-            }
-        }
-    }
-};
-
-class ModifierChain : public std::vector<Modifier *>
-{
-    uint32_t attribute;
-    Vector3f bsphere;
-    float bsphere_radius;
-    Vector3f aabb_min, aabb_max;
-public:
-    ModifierChain(BitStreamReader& reader) {
-        reader >> attribute;
-        if(attribute & 0x00000001) {
-            reader >> bsphere >> bsphere_radius;
-        } else if(attribute & 0x00000002) {
-            reader >> aabb_min >> aabb_max;
-        }
-        reader.align_to_word();
-        uint32_t modifier_count = reader.read<uint32_t>();
-        resize(modifier_count);
-        for(unsigned int i = 0; i < modifier_count; i++) {
-            BitStreamReader::SubBlock subblock(reader);
-            std::string name = reader.read_str();
-            switch(subblock.get_type()) {
-            case 0xFFFFFF21:    //Group Node Block
-                (*this)[i] = new Group(reader);
-                std::fprintf(stderr, "\tGroup node \"%s\"\n", name.c_str());
-                break;
-            case 0xFFFFFF22:    //Model Node Block
-                (*this)[i] = new Model(reader);
-                std::fprintf(stderr, "\tModel \"%s\"\n", name.c_str());
-                break;
-            case 0xFFFFFF23:    //Light Node Block
-                (*this)[i] = new Light(reader);
-                std::fprintf(stderr, "\tLight \"%s\"\n", name.c_str());
-                break;
-            case 0xFFFFFF24:    //View Node Block
-                (*this)[i] = new View(reader);
-                std::fprintf(stderr, "\tView \"%s\"\n", name.c_str());
-                break;
-            case 0xFFFFFF31:    //CLOD Mesh Generator Declaration
-                (*this)[i] = new CLOD_Mesh(reader);
-                std::fprintf(stderr, "\tCLOD Mesh \"%s\"\n", name.c_str());
-                break;
-            case 0xFFFFFF36:    //Point Set Declaration
-                (*this)[i] = new PointSet(reader);
-                std::fprintf(stderr, "\tPoint Set \"%s\"\n", name.c_str());
-                break;
-            case 0xFFFFFF37:    //Line Set Declaration
-                (*this)[i] = new LineSet(reader);
-                std::fprintf(stderr, "\tLine Set \"%s\"\n", name.c_str());
-                break;
-            case 0xFFFFFF41:    //2D Glyph Modifier Block
-            case 0xFFFFFF42:    //Subdivision Modifier Block
-            case 0xFFFFFF43:    //Animation Modifier Block
-            case 0xFFFFFF44:    //Bone Weight Modifier Block
-                std::fprintf(stderr, "Modifier Type 0x%08X is not implemented in the current version.\n", subblock.get_type());
-                return;
-            case 0xFFFFFF45:    //Shading Modifier Block
-                (*this)[i] = new Shading(reader);
-                std::fprintf(stderr, "\tShading \"%s\"\n", name.c_str());
-                break;
-            case 0xFFFFFF46:    //CLOD Modifier Block
-                (*this)[i] = new CLOD_Modifier(reader);
-                std::fprintf(stderr, "\tCLOD Modifier \"%s\"\n", name.c_str());
-                break;
-            default:
-                std::fprintf(stderr, "Illegal modifier type: 0x%08X.\n", subblock.get_type());
-                return;
-            }
-        }
-    }
-    virtual ~ModifierChain() {
-        for(iterator p = begin(); p != end(); p++) delete *p;
     }
 };
 
@@ -330,29 +235,112 @@ public:
     }
 };
 
-class NodeModifierChain : public Node, public ModifierChain
+static uint32_t read_modifier_count(BitStreamReader& reader)
 {
-public:
-    NodeModifierChain(BitStreamReader& reader) : ModifierChain(reader)
-    {
+    uint32_t attribute;
+    reader >> attribute;
+    if(attribute & 0x00000001) {
+        reader.read<Vector3f>();
+        reader.read<float>();
+    } else if(attribute & 0x00000002) {
+        reader.read<Vector3f>();
+        reader.read<Vector3f>();
     }
-};
+    reader.align_to_word();
+    return reader.read<uint32_t>();
+}
 
-class ModelResource : public ModifierChain
+static Node *create_node_modifier_chain(BitStreamReader& reader)
 {
-public:
-    ModelResource(BitStreamReader& reader) : ModifierChain(reader)
-    {
+    Node *head = NULL;
+    uint32_t count = read_modifier_count(reader);
+    for(unsigned int i = 0; i < count; i++) {
+        BitStreamReader::SubBlock subblock(reader);
+        std::string name = reader.read_str();
+        switch(subblock.get_type()) {
+        case 0xFFFFFF21:    //Group Node Block
+            head = static_cast<Node *>(new Group(reader));
+            std::fprintf(stderr, "\tGroup node \"%s\"\n", name.c_str());
+            break;
+        case 0xFFFFFF22:    //Model Node Block
+            head = static_cast<Node *>(new Model(reader));
+            std::fprintf(stderr, "\tModel \"%s\"\n", name.c_str());
+            break;
+        case 0xFFFFFF23:    //Light Node Block
+            head = static_cast<Node *>(new Light(reader));
+            std::fprintf(stderr, "\tLight \"%s\"\n", name.c_str());
+            break;
+        case 0xFFFFFF24:    //View Node Block
+            head = static_cast<Node *>(new View(reader));
+            std::fprintf(stderr, "\tView \"%s\"\n", name.c_str());
+            break;
+        default:
+            std::fprintf(stderr, "Illegal modifier 0x%08X in a node modifier chain\n", subblock.get_type());
+            return head;
+        }
     }
-};
+    return head;
+}
 
-/*class TextureModifierChain : public Texture, public ModifierChain
+static ModelResource *create_model_modifier_chain(BitStreamReader& reader)
 {
-public:
-    TextureModifierChain(BitStreamReader& reader) : ModifierChain(reader)
-    {
+    ModelResource *head = NULL;
+    uint32_t count = read_modifier_count(reader);
+    for(unsigned int i = 0; i < count; i++) {
+        BitStreamReader::SubBlock subblock(reader);
+        std::string name = reader.read_str();
+        switch(subblock.get_type()) {
+        case 0xFFFFFF31:    //CLOD Mesh Generator Declaration
+            head = static_cast<ModelResource *>(new CLOD_Mesh(reader));
+            std::fprintf(stderr, "\tCLOD Mesh \"%s\"\n", name.c_str());
+            break;
+        case 0xFFFFFF36:    //Point Set Declaration
+            head = static_cast<ModelResource *>(new PointSet(reader));
+            std::fprintf(stderr, "\tPoint Set \"%s\"\n", name.c_str());
+            break;
+        case 0xFFFFFF37:    //Line Set Declaration
+            head = static_cast<ModelResource *>(new LineSet(reader));
+            std::fprintf(stderr, "\tLine Set \"%s\"\n", name.c_str());
+            break;
+        case 0xFFFFFF45:    //Shading Modifier Block
+            if(head != NULL) {
+                head->add_shading_modifier(new Shading(reader));
+            }
+            std::fprintf(stderr, "\tShading \"%s\"\n", name.c_str());
+            break;
+        case 0xFFFFFF42:    //Subdivision Modifier Block
+        case 0xFFFFFF43:    //Animation Modifier Block
+        case 0xFFFFFF44:    //Bone Weight Modifier Block
+        case 0xFFFFFF46:    //CLOD Modifier Block
+            std::fprintf(stderr, "Modifier Type 0x%08X is not implemented in the current version.\n", subblock.get_type());
+            break;
+        default:
+            std::fprintf(stderr, "Illegal modifier 0x%08X in an instance modifier chain\n", subblock.get_type());
+            return head;
+        }
     }
-};*/
+    return head;
+}
+
+static Texture *create_texture_modifier_chain(BitStreamReader& reader)
+{
+    Texture *head = NULL;
+    uint32_t count = read_modifier_count(reader);
+    for(unsigned int i = 0; i < count; i++) {
+        BitStreamReader::SubBlock subblock(reader);
+        std::string name = reader.read_str();
+        switch(subblock.get_type()) {
+        case 0xFFFFFF55:    //Texture Declaration
+            head = new Texture(reader);
+            std::fprintf(stderr, "Texture Resource \"%s\"\n", name.c_str());
+            break;
+        default:
+            std::fprintf(stderr, "Illegal modifier 0x%08X in an instance modifier chain\n", subblock.get_type());
+            return head;
+        }
+    }
+    return head;
+}
 
 class U3DContext
 {
@@ -381,13 +369,13 @@ public:
                 std::fprintf(stderr, "Modifier Chain \"%s\"\n", name.c_str());
                 switch(reader.read<uint32_t>()) {
                 case 0:
-                    nodes[name] = new NodeModifierChain(reader);
+                    nodes[name] = create_node_modifier_chain(reader);
                     break;
                 case 1:
-                    models[name] = new ModelResource(reader);
+                    models[name] = create_model_modifier_chain(reader);
                     break;
                 case 2:
-                    //textures[name] = new TextureModifierChain(reader);
+                    textures[name] = create_texture_modifier_chain(reader);
                     break;
                 }
                 break;
@@ -437,7 +425,7 @@ public:
             case 0xFFFFFF3B:    //CLOD Base Mesh Continuation
                 name = reader.read_str();
                 if(models[name] != NULL) {
-                    CLOD_Mesh *decl = dynamic_cast<CLOD_Mesh *>(models[name]->front());
+                    CLOD_Mesh *decl = dynamic_cast<CLOD_Mesh *>(models[name]);
                     if(decl != NULL) {
                         decl->create_base_mesh(reader);
                         std::fprintf(stderr, "CLOD Base Mesh Continuation \"%s\"\n", name.c_str());
@@ -449,7 +437,7 @@ public:
             case 0xFFFFFF3C:    //CLOD Progressive Mesh Continuation
                 name = reader.read_str();
                 if(models[name] != NULL) {
-                    CLOD_Mesh *decl = dynamic_cast<CLOD_Mesh *>(models[name]->front());
+                    CLOD_Mesh *decl = dynamic_cast<CLOD_Mesh *>(models[name]);
                     if(decl != NULL) {
                         decl->update_resolution(reader);
                         std::fprintf(stderr, "CLOD Progressive Mesh Continuation \"%s\"\n", name.c_str());
@@ -459,7 +447,7 @@ public:
             case 0xFFFFFF3E:    //Point Set Continuation
                 name = reader.read_str();
                 if(models[name] != NULL) {
-                    PointSet *decl = dynamic_cast<PointSet *>(models[name]->front());
+                    PointSet *decl = dynamic_cast<PointSet *>(models[name]);
                     if(decl != NULL) {
                         decl->update_resolution(reader);
                         std::fprintf(stderr, "Point Set Continuation \"%s\"\n", name.c_str());
@@ -469,7 +457,7 @@ public:
             case 0xFFFFFF3F:    //Line Set Continuation
                 name = reader.read_str();
                 if(models[name] != NULL) {
-                    LineSet *decl = dynamic_cast<LineSet *>(models[name]->front());
+                    LineSet *decl = dynamic_cast<LineSet *>(models[name]);
                     if(decl != NULL) {
                         decl->update_resolution(reader);
                         std::fprintf(stderr, "Line Set Continuation \"%s\"\n", name.c_str());
@@ -505,35 +493,41 @@ void __attribute__((noreturn)) abort_with_msg(const char *msg)
     exit(0);
 }
 
+#include <windows.h>
+
 #define STR2(x) #x
 #define STR(x) STR2(x)
-#define ERROR(msg) abort_with_msg(STR(__FILE__) ":" STR(__LINE__) ";" msg "\n")
+#define EXIT(msg) abort_with_msg(STR(__FILE__) ":" STR(__LINE__) ";" msg "\n")
 
-int main(int argc, char * const argv[])
+
+//int main(int argc, char * const argv[])
+int WINAPI WinMain(HINSTANCE hI, HINSTANCE hP, LPSTR lpC, int nC)
 {
     std::printf("Universal 3D loader v0.1a\n");
 
-    if(argc < 2) {
+    /*if(argc < 2) {
         std::fprintf(stderr, "Please specify an input file.\n");
         return 1;
     }
 
     U3D::U3DContext model(argv[1]);
 
-    std::fprintf(stderr, "%s successfully parsed.\n", argv[1]);
+    std::fprintf(stderr, "%s successfully parsed.\n", argv[1]);*/
+
+    U3D::U3DContext model(lpC);
 
     if(SDL_Init(SDL_INIT_VIDEO) < 0) {
-        ERROR("Failed to initialize SDL2.");
+        EXIT("Failed to initialize SDL2.");
     }
 
     SDL_Window *window = SDL_CreateWindow("Universal 3D testbed", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, 480, 360, SDL_WINDOW_OPENGL | SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE);
     if(window == NULL) {
-        ERROR("Failed to create an SDL2 window.");
+        EXIT("Failed to create an SDL2 window.");
     }
 
     SDL_GLContext context = SDL_GL_CreateContext(window);
     if(context == NULL) {
-        ERROR("Failed to create an OpenGL context.");
+        EXIT("Failed to create an OpenGL context.");
     }
 
     {

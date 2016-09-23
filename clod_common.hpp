@@ -10,6 +10,37 @@
 namespace U3D
 {
 
+class Shading
+{
+    uint32_t chain_index, attributes;
+    std::vector<std::vector<std::string> > shader_names;
+public:
+    Shading(BitStreamReader& reader)
+    {
+        reader >> chain_index >> attributes;
+        uint32_t list_count = reader.read<uint32_t>();
+        shader_names.resize(list_count);
+        for(unsigned int i = 0; i < list_count; i++) {
+            uint32_t shader_count = reader.read<uint32_t>();
+            shader_names[i].resize(shader_count);
+            for(unsigned int j = 0; j < shader_count; j++) {
+                reader >> shader_names[i][j];
+            }
+        }
+    }
+};
+
+class ModelResource
+{
+public:
+    ModelResource() {}
+    virtual ~ModelResource() {}
+    void add_shading_modifier(Shading *shading)
+    {
+        delete shading;
+    }
+};
+
 class CLOD_Object
 {
 protected:

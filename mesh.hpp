@@ -11,7 +11,7 @@
 namespace U3D
 {
 
-class CLOD_Mesh : private CLOD_Object, public Modifier
+class CLOD_Mesh : private CLOD_Object, public ModelResource
 {
     //Mesh contents
     std::vector<Vector3f> positions, normals;
@@ -148,17 +148,6 @@ public:
     void create_base_mesh(BitStreamReader& reader);
     void update_resolution(BitStreamReader& reader);
     void dump_author_mesh();
-};
-
-class CLOD_Modifier : public Modifier
-{
-    uint32_t chain_index, attributes;
-    float LOD_bias, level;
-public:
-    CLOD_Modifier(BitStreamReader& reader)
-    {
-        reader >> chain_index >> attributes >> LOD_bias >> level;
-    }
 };
 
 }
