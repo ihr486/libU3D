@@ -75,6 +75,7 @@ protected:
     std::vector<TexCoord4f> texcoords;
 public:
     CLOD_Object(bool clod_desc_flag, BitStreamReader& reader);
+    CLOD_Object() : face_count(0), position_count(0), normal_count(0), diffuse_count(0), specular_count(0), texcoord_count(0) , min_res(0), max_res(0) {}
 protected:
     uint32_t get_texlayer_count(uint32_t shading_id) const
     {

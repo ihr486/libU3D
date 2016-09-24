@@ -181,6 +181,17 @@ public:
             }
         }
     }
+    LitTextureShader()
+    {
+        attributes = 0x00000000;
+        alpha_reference = 0;
+        alpha_function = 0x00000617;
+        blend_function = 0x00000606;
+        render_pass_flags = 0x00000001;
+        material_name = "";
+        shader_channels = 0;
+        alpha_texture_channels = 0;
+    }
 };
 
 class Material
@@ -192,6 +203,16 @@ public:
     Material(BitStreamReader& reader)
     {
         reader >> attributes >> ambient >> diffuse >> specular >> emissive >> reflectivity >> opacity;
+    }
+    Material()
+    {
+        attributes = 0x0000003F;
+        ambient = Color3f(0.75f, 0.75f, 0.75f);
+        diffuse = Color3f(0, 0, 0);
+        specular = Color3f(0, 0, 0);
+        emissive = Color3f(0, 0, 0);
+        reflectivity = 0;
+        opacity = 1.0f;
     }
 };
 
@@ -208,6 +229,10 @@ public:
         reader >> attributes >> type >> color;
         reader.read<float>();
         reader >> att_constant >> att_linear >> att_quadratic >> spot_angle >> intensity;
+    }
+    LightResource()
+    {
+        attributes = 0x00000001, type = 0x00, color = Color3f(0.75f, 0.75f, 0.75f);
     }
 };
 
@@ -232,6 +257,12 @@ public:
             reader >> passes[i].root_node_name >> passes[i].render_attributes;
             reader >> passes[i].fog_mode >> passes[i].fog_color >> passes[i].fog_alpha >> passes[i].fog_near >> passes[i].fog_far;
         }
+    }
+    ViewResource()
+    {
+        passes.resize(1);
+        passes[0].root_node_name = "";
+        passes[0].render_attributes = 0x00000000;
     }
 };
 
@@ -360,7 +391,13 @@ class U3DContext
 public:
     U3DContext(const std::string& filename) : reader(filename)
     {
-        nodes[""] = new Group();
+        models[""] = new CLOD_Mesh();
+        lights[""] = new LightResource();
+        views[""] = new ViewResource();
+        textures[""] = new Texture();
+        shaders[""] = new LitTextureShader();
+        materials[""] = new Material();
+        nodes[""] = static_cast<Node *>(new Group());
 
         while(reader.open_block()) {
             std::string name;

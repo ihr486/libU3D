@@ -40,6 +40,10 @@ public:
             continuations[i].byte_position = 0;
         }
     }
+    Texture()
+    {
+        height = 8, width = 8, type = 0x0E;
+    }
     ~Texture()
     {
         for(unsigned int i = 0; i < continuations.size(); i++) {

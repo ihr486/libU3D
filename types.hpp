@@ -67,6 +67,7 @@ struct Color3f
 {
     float r, g, b;
     Color3f() : r(0), g(0), b(0) {}
+    Color3f(float r, float g, float b) : r(r), g(g), b(b) {}
 };
 
 struct Color4f

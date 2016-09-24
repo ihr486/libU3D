@@ -144,6 +144,7 @@ class CLOD_Mesh : private CLOD_Object, public ModelResource
     };
     FaceIndexer indexer;
 public:
+    CLOD_Mesh() : cur_res(0) {}
     CLOD_Mesh(BitStreamReader& reader);
     void create_base_mesh(BitStreamReader& reader);
     void update_resolution(BitStreamReader& reader);
