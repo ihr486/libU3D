@@ -18,7 +18,9 @@ endif
 CXXFLAGS := -Wall -Wextra -std=c++03 -O2 $(shell $(PKGCONFIG) --cflags sdl2) -I/usr/x86_64-w64-mingw32/sys-root/mingw/include/GL
 LDFLAGS := -Wl,--subsystem,windows -lm $(shell $(PKGCONFIG) --libs sdl2 SDL2_image) -lglew32 -lopengl32
 else
-CXXFLAGS := -Wall -Wextra -std=c++03 -O2 $(shell pkg-config sdl2 glew)
+CXX := g++
+PKGCONFIG := pkg-config
+CXXFLAGS := -Wall -Wextra -std=c++03 -O2 $(shell pkg-config --cflags sdl2 glew)
 LDFLAGS := -lm $(shell pkg-config --libs sdl2 SDL2_image glew)
 endif
 
