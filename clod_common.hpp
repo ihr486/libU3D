@@ -35,10 +35,6 @@ class ModelResource
 public:
     ModelResource() {}
     virtual ~ModelResource() {}
-    void add_shading_modifier(Shading *shading)
-    {
-        delete shading;
-    }
 };
 
 class CLOD_Object

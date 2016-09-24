@@ -134,6 +134,10 @@ public:
         Node::read(reader);
         reader >> resource_name >> visibility;
     }
+    void add_shading_modifier(Shading *shading)
+    {
+        delete shading;
+    }
 };
 
 class Light : public Node
@@ -274,6 +278,15 @@ static Node *create_node_modifier_chain(BitStreamReader& reader)
             head = static_cast<Node *>(new View(reader));
             std::fprintf(stderr, "\tView \"%s\"\n", name.c_str());
             break;
+        case 0xFFFFFF45:    //Shading Modifier Block
+            if(head != NULL) {
+                Model *model = dynamic_cast<Model *>(head);
+                if(model != NULL) {
+                    model->add_shading_modifier(new Shading(reader));
+                }
+            }
+            std::fprintf(stderr, "\tShading \"%s\"\n", name.c_str());
+            break;
         default:
             std::fprintf(stderr, "Illegal modifier 0x%08X in a node modifier chain\n", subblock.get_type());
             return head;
@@ -301,12 +314,6 @@ static ModelResource *create_model_modifier_chain(BitStreamReader& reader)
         case 0xFFFFFF37:    //Line Set Declaration
             head = static_cast<ModelResource *>(new LineSet(reader));
             std::fprintf(stderr, "\tLine Set \"%s\"\n", name.c_str());
-            break;
-        case 0xFFFFFF45:    //Shading Modifier Block
-            if(head != NULL) {
-                head->add_shading_modifier(new Shading(reader));
-            }
-            std::fprintf(stderr, "\tShading \"%s\"\n", name.c_str());
             break;
         case 0xFFFFFF42:    //Subdivision Modifier Block
         case 0xFFFFFF43:    //Animation Modifier Block
@@ -493,28 +500,22 @@ void __attribute__((noreturn)) abort_with_msg(const char *msg)
     exit(0);
 }
 
-#include <windows.h>
-
 #define STR2(x) #x
 #define STR(x) STR2(x)
 #define EXIT(msg) abort_with_msg(STR(__FILE__) ":" STR(__LINE__) ";" msg "\n")
 
-
-//int main(int argc, char * const argv[])
-int WINAPI WinMain(HINSTANCE hI, HINSTANCE hP, LPSTR lpC, int nC)
+int main(int argc, char *argv[])
 {
     std::printf("Universal 3D loader v0.1a\n");
 
-    /*if(argc < 2) {
+    if(argc < 2) {
         std::fprintf(stderr, "Please specify an input file.\n");
         return 1;
     }
 
     U3D::U3DContext model(argv[1]);
 
-    std::fprintf(stderr, "%s successfully parsed.\n", argv[1]);*/
-
-    U3D::U3DContext model(lpC);
+    std::fprintf(stderr, "%s successfully parsed.\n", argv[1]);
 
     if(SDL_Init(SDL_INIT_VIDEO) < 0) {
         EXIT("Failed to initialize SDL2.");
