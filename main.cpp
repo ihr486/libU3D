@@ -55,7 +55,7 @@ protected:
     };
     std::vector<Parent> parents;
 public:
-    void read(BitStreamReader& reader)
+    Node(BitStreamReader& reader)
     {
         uint32_t parent_count = reader.read<uint32_t>();
         parents.resize(parent_count);
@@ -63,16 +63,15 @@ public:
             reader >> parents[i].name >> parents[i].transform;
         }
     }
+    Node() {}
     virtual ~Node() {}
 };
 
 class Group : public Node
 {
 public:
-    Group(BitStreamReader& reader)
-    {
-        Node::read(reader);
-    }
+    Group(BitStreamReader& reader) : Node(reader) {}
+    Group() {}
 };
 
 class View : public Node
@@ -92,9 +91,8 @@ class View : public Node
     };
     std::vector<Backdrop> backdrops, overlays;
 public:
-    View(BitStreamReader& reader)
+    View(BitStreamReader& reader) : Node(reader)
     {
-        Node::read(reader);
         reader >> resource_name >> attributes >> near_clipping >> far_clipping;
         switch(attributes & 0x6) {
         case 0: //Three-point perspective projection
@@ -129,9 +127,8 @@ class Model : public Node
     std::string resource_name;
     uint32_t visibility;
 public:
-    Model(BitStreamReader& reader)
+    Model(BitStreamReader& reader) : Node(reader)
     {
-        Node::read(reader);
         reader >> resource_name >> visibility;
     }
     void add_shading_modifier(Shading *shading)
@@ -144,9 +141,8 @@ class Light : public Node
 {
     std::string resource_name;
 public:
-    Light(BitStreamReader& reader)
+    Light(BitStreamReader& reader) : Node(reader)
     {
-        Node::read(reader);
         reader >> resource_name;
     }
 };
@@ -364,6 +360,8 @@ class U3DContext
 public:
     U3DContext(const std::string& filename) : reader(filename)
     {
+        nodes[""] = new Group();
+
         while(reader.open_block()) {
             std::string name;
 
