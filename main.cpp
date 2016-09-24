@@ -1,4 +1,4 @@
-#include <cstdio>
+#include <stdio.h>
 #include <iostream>
 #include <fstream>
 #include <string>
@@ -496,7 +496,7 @@ public:
 
 void __attribute__((noreturn)) abort_with_msg(const char *msg)
 {
-    std::fprintf(stderr, "%s\n", msg);
+    fprintf(stderr, "%s\n", msg);
     exit(0);
 }
 
@@ -504,18 +504,30 @@ void __attribute__((noreturn)) abort_with_msg(const char *msg)
 #define STR(x) STR2(x)
 #define EXIT(msg) abort_with_msg(STR(__FILE__) ":" STR(__LINE__) ";" msg "\n")
 
+#ifdef __WIN32__
+#include <windows.h>
+int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR lpC, int nC)
+#else
 int main(int argc, char *argv[])
+#endif
 {
-    std::printf("Universal 3D loader v0.1a\n");
+    printf("Universal 3D loader v0.1a\n");
 
+#ifndef __WIN32__
     if(argc < 2) {
-        std::fprintf(stderr, "Please specify an input file.\n");
+        fprintf(stderr, "Please specify an input file.\n");
         return 1;
     }
 
     U3D::U3DContext model(argv[1]);
 
-    std::fprintf(stderr, "%s successfully parsed.\n", argv[1]);
+    fprintf(stderr, "%s successfully parsed.\n", argv[1]);
+#else
+    U3D::U3DContext model(lpC);
+
+    fprintf(stderr, "%s successfully parsed.\n", lpC);
+#endif
+
 
     if(SDL_Init(SDL_INIT_VIDEO) < 0) {
         EXIT("Failed to initialize SDL2.");
