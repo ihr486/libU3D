@@ -44,7 +44,7 @@ public:
     }
     Texture()
     {
-        height = 8, width = 8, type = 0x0E;
+        height = 8, width = 8, type = RGB;
     }
     ~Texture()
     {
