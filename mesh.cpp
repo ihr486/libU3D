@@ -570,4 +570,8 @@ void CLOD_Mesh::dump_author_mesh()
     }
 }
 
+virtual ArrayBuffer *create_array_buffer()
+{
+}
+
 }

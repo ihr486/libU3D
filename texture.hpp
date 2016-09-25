@@ -13,6 +13,7 @@ class Texture
 {
     uint32_t width, height;
     uint8_t type;
+    static const uint8_t ALPHA = 1, BLUE = 2, GREEN = 4, RED = 8, RGB = 14, RGBA = 15, LUMINANCE = 16;
     struct Continuation
     {
         uint8_t compression_type, channels;
@@ -20,6 +21,7 @@ class Texture
         uint32_t byte_count, byte_position;
         uint8_t *image_data;
     };
+    static const uint8_t JPEG24 = 1, PNG = 2, JPEG8 = 3, TIFF = 4;
     std::vector<Continuation> continuations;
 public:
     Texture(BitStreamReader& reader)

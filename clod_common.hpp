@@ -5,6 +5,8 @@
 #include <string>
 #include <algorithm>
 
+#include <GL/glew.h>
+
 #include "types.hpp"
 
 namespace U3D
@@ -13,6 +15,7 @@ namespace U3D
 class Shading
 {
     uint32_t chain_index, attributes;
+    static const uint32_t SHADING_MESH = 1, SHADING_LINE = 2, SHADING_POINT = 4, SHADING_GLYPH = 8;
     std::vector<std::vector<std::string> > shader_names;
 public:
     Shading(BitStreamReader& reader)
@@ -22,6 +25,9 @@ public:
         shader_names.resize(list_count);
         for(unsigned int i = 0; i < list_count; i++) {
             uint32_t shader_count = reader.read<uint32_t>();
+            if(shader_count != 1) {
+                std::cerr << "Shaders with shader count greater than 1 are ignored." << std::endl;
+            }
             shader_names[i].resize(shader_count);
             for(unsigned int j = 0; j < shader_count; j++) {
                 reader >> shader_names[i][j];
@@ -30,11 +36,21 @@ public:
     }
 };
 
+class RenderGroup
+{
+    std::vector<GLuint> vertex_buffers;
+public:
+    RenderGroup(int n);
+    ~RenderGroup();
+    void render();
+};
+
 class ModelResource
 {
 public:
     ModelResource() {}
     virtual ~ModelResource() {}
+    virtual RenderGroup *create_render_group() = 0;
 };
 
 class CLOD_Object
@@ -42,12 +58,14 @@ class CLOD_Object
 protected:
     //Maximum mesh description
     uint32_t attributes;
+    static const uint32_t EXCLUDE_NORMALS = 1;
     uint32_t face_count, position_count, normal_count;
     uint32_t diffuse_count, specular_count, texcoord_count;
     struct ShadingDesc {
         uint32_t attributes;
         std::vector<uint32_t> texcoord_dims;
     };
+    static const uint32_t VERTEX_DIFFUSE_COLOR = 1, VERTEX_SPECULAR_COLOR = 2;
     std::vector<ShadingDesc> shading_descs;
     //CLoD description
     uint32_t min_res, max_res;

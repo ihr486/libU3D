@@ -78,6 +78,7 @@ class View : public Node
 {
     std::string resource_name;
     uint32_t attributes;
+    static const uint32_t UNIT_SCREEN_POSITION = 1, PROJECTION_ORTHO = 2, PROJECTION_TWO_POINT = 4, PROJECTION_ONE_POINT = 8;
     float near_clipping, far_clipping;
     float projection, ortho_height;
     Vector3f proj_vector;
@@ -126,6 +127,7 @@ class Model : public Node
 {
     std::string resource_name;
     uint32_t visibility;
+    static const uint32_t FRONT_VISIBLE = 1, BACK_VISIBLE = 2;
 public:
     Model(BitStreamReader& reader) : Node(reader)
     {
@@ -150,8 +152,11 @@ public:
 class LitTextureShader
 {
     uint32_t attributes;
+    static const uint32_t LIGHTING_ENABLED = 1, ALPHA_TEST_ENABLED = 2, USE_VERTEX_COLOR = 4;
     float alpha_reference;
     uint32_t alpha_function, blend_function;
+    static const uint32_t NEVER = 0x610, LESS = 0x611, GREATER = 0x612, EQUAL = 0x613, NOT_EQUAL = 0x614, LEQUAL = 0x615, GEQUAL = 0x616, ALWAYS = 0x617;
+    static const uint32_t FB_ADD = 0x604, FB_MULTIPLY = 0x605, FB_ALPHA_BLEND = 0x606, FB_INV_ALPHA_BLEND = 0x607;
     uint32_t render_pass_flags;
     uint32_t shader_channels, alpha_texture_channels;
     std::string material_name;
@@ -167,6 +172,10 @@ class LitTextureShader
         Matrix4f wrap_transform;
         uint8_t repeat;
     };
+    static const uint8_t MULTIPLY = 0, ADD = 1, REPLACE = 2, BLEND = 3;
+    static const uint8_t PIXEL_ALPHA = 0, CONSTANT = 1;
+    static const uint8_t TM_NONE = 0, TM_PLANAR = 1, TM_CYLINDRICAL = 2, TM_SPHERICAL = 3, TM_REFLECTION = 4;
+    static const uint8_t REPEAT_FIRST = 1, REPEAT_SECOND = 2;
     TextureInfo texinfos[8];
 public:
     LitTextureShader(BitStreamReader& reader)
@@ -197,6 +206,7 @@ public:
 class Material
 {
     uint32_t attributes;
+    static const uint32_t AMBIENT = 1, DIFFUSE = 2, SPECULAR = 4, EMISSIVE = 8, REFLECTIVITY = 16, OPACITY = 32;
     Color3f ambient, diffuse, specular, emissive;
     float reflectivity, opacity;
 public:
@@ -219,7 +229,9 @@ public:
 class LightResource
 {
     uint32_t attributes;
+    static const uint32_t LIGHT_ENABLED = 1, LIGHT_SPECULAR = 2, SPOT_DECAY = 4;
     uint8_t type;
+    static const uint8_t LIGHT_AMBIENT = 0, LIGHT_DIRECTIONAL = 1, LIGHT_POINT = 2, LIGHT_SPOT = 3;
     Color3f color;
     float att_constant, att_linear, att_quadratic;
     float spot_angle, intensity;
@@ -247,6 +259,8 @@ class ViewResource
         float fog_alpha;
         float fog_near, fog_far;
     };
+    static const uint32_t FOG_ENABLED = 1;
+    static const uint32_t FOG_EXPONENTIAL = 1, FOG_EXPONENTIAL2 = 2;
     std::vector<Pass> passes;
 public:
     ViewResource(BitStreamReader& reader)
