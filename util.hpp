@@ -25,7 +25,7 @@ public:
         stream << obj;
         return *this;
     }
-    virtual ~Error() {}
+    virtual ~Error() throw() {}
 };
 
 #define U3D_LOG (std::cout << __FILE__ ":" << __LINE__ << ":")

@@ -38,11 +38,72 @@ public:
 
 class RenderGroup
 {
-    std::vector<GLuint> vertex_buffers;
+    struct RenderElement {
+        GLuint buffer;
+        int count;
+        uint32_t flags;
+    };
+    std::vector<RenderElement> elements;
+    GLenum mode;
 public:
-    RenderGroup(int n);
-    ~RenderGroup();
-    void render();
+    static const uint32_t BUFFER_POSITION_MASK = 0x7;
+    static const uint32_t BUFFER_NORMAL_MASK = 0x38;
+    static const uint32_t BUFFER_DIFFUSE_MASK = 0x3C0;
+    static const uint32_t BUFFER_SPECULAR_MASK = 0x3C00;
+    static const uint32_t BUFFER_TEXCOORD0_MASK = 0xC000;
+
+    RenderGroup(GLenum mode, int num_elements) : mode(mode) {
+        elements.resize(num_elements);
+        for(int i = 0; i < num_elements; i++) {
+            glGenBuffers(1, &elements[i].buffer);
+        }
+    }
+    ~RenderGroup() {
+        for(int i = 0; i < elements.size(); i++) {
+            glDeleteBuffers(1, &elements[i].buffer);
+        }
+    }
+    void load(int index, const GLfloat *src, uint32_t flags, int count) {
+        glBindBuffer(GL_ARRAY_BUFFER, elements[index].buffer);
+        glBufferData(GL_ARRAY_BUFFER, sizeof(GLfloat) * __builtin_popcount(flags), src, GL_STATIC_DRAW);
+        glBindBuffer(GL_ARRAY_BUFFER, 0);
+        elements[index].count = count;
+        elements[index].flags = flags;
+    }
+    void render() {
+        for(int i = 0; i < elements.size(); i++) {
+            int stride = sizeof(GLfloat) * __builtin_popcount(elements[i].flags);
+            glBindBuffer(GL_ARRAY_BUFFER, elements[i].buffer);
+            glEnableVertexAttribArray(0);
+            GLfloat *head = 0;
+            glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, stride, head);
+            head += 3;
+            if(elements[i].flags & BUFFER_NORMAL_MASK) {
+                glEnableVertexAttribArray(1);
+                glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, stride, head);
+                head += 3;
+            }
+            if(elements[i].flags & BUFFER_DIFFUSE_MASK) {
+                glEnableVertexAttribArray(2);
+                glVertexAttribPointer(2, 4, GL_FLOAT, GL_FALSE, stride, head);
+                head += 4;
+            }
+            if(elements[i].flags & BUFFER_SPECULAR_MASK) {
+                glEnableVertexAttribArray(3);
+                glVertexAttribPointer(3, 4, GL_FLOAT, GL_FALSE, stride, head);
+                head += 4;
+            }
+            for(int j = 0; j < 8; j++) {
+                if(elements[i].flags & (BUFFER_TEXCOORD0_MASK << (2 * j))) {
+                    glEnableVertexAttribArray(4 + j);
+                    glVertexAttribPointer(4 + j, 2, GL_FLOAT, GL_FALSE, stride, head);
+                    head += 2;
+                }
+            }
+            glDrawArrays(mode, 0, elements[i].count);
+        }
+        glBindBuffer(GL_ARRAY_BUFFER, 0);
+    }
 };
 
 class ModelResource

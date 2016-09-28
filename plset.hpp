@@ -20,6 +20,7 @@ class PointSet : private CLOD_Object, public ModelResource
 public:
     PointSet(BitStreamReader& reader);
     void update_resolution(BitStreamReader& reader);
+    RenderGroup *create_render_group();
 };
 
 class LineSet : private CLOD_Object, public ModelResource
@@ -62,6 +63,7 @@ class LineSet : private CLOD_Object, public ModelResource
 public:
     LineSet(BitStreamReader& reader);
     void update_resolution(BitStreamReader& reader);
+    RenderGroup *create_render_group();
 };
 
 }

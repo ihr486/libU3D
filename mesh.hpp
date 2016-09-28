@@ -44,17 +44,6 @@ class CLOD_Mesh : private CLOD_Object, public ModelResource
     {
         std::vector<std::vector<uint32_t> > positions;
     public:
-        static bool is_face_neighbors(const Face& face1, const Face& face2) {
-            int count = 0;
-            for(int i = 0; i < 3; i++) {
-                for(int j = 0; j < 3; j++) {
-                    if(face1.corners[i].position == face2.corners[j].position) {
-                        count++;
-                    }
-                }
-            }
-            return count == 2;
-        }
         void add_face(uint32_t index, const Face& face) {
             for(int i = 0; i < 3; i++) {
                 positions[face.corners[i].position].push_back(index);
@@ -149,6 +138,7 @@ public:
     void create_base_mesh(BitStreamReader& reader);
     void update_resolution(BitStreamReader& reader);
     void dump_author_mesh();
+    RenderGroup *create_render_group();
 };
 
 }

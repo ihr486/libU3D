@@ -570,8 +570,62 @@ void CLOD_Mesh::dump_author_mesh()
     }
 }
 
-virtual ArrayBuffer *create_array_buffer()
+RenderGroup *CLOD_Mesh::create_render_group()
 {
+    RenderGroup *group = new RenderGroup(GL_TRIANGLES, shading_descs.size());
+    std::vector<int> face_count(shading_descs.size());
+    for(unsigned int i = 0; i < faces.size(); i++) {
+        face_count[faces[i].shading_id]++;
+    }
+    for(unsigned int i = 0; i < shading_descs.size(); i++) {
+        uint32_t flags = RenderGroup::BUFFER_POSITION_MASK;
+        GLfloat *data = new GLfloat[face_count[i] * 3];
+        if(!(attributes & EXCLUDE_NORMALS)) {
+            flags |= RenderGroup::BUFFER_NORMAL_MASK;
+        }
+        if(shading_descs[i].attributes & VERTEX_DIFFUSE_COLOR) {
+            flags |= RenderGroup::BUFFER_DIFFUSE_MASK;
+        }
+        if(shading_descs[i].attributes & VERTEX_SPECULAR_COLOR) {
+            flags |= RenderGroup::BUFFER_SPECULAR_MASK;
+        }
+        for(int j = 0; j < 8; j++) {
+            if(shading_descs[i].texcoord_dims[j] == 2) {
+                flags |= RenderGroup::BUFFER_TEXCOORD0_MASK << 2 * j;
+            }
+        }
+        int index = 0;
+        int stride = __builtin_popcount(flags);
+        for(unsigned int j = 0; j < faces.size(); j++) {
+            if(faces[j].shading_id == i) {
+                for(int k = 0; k < 3; k++) {
+                    GLfloat *head = &data[index * stride + 0];
+                    memcpy(head, &positions[faces[j].corners[k].position], sizeof(GLfloat) * 3);
+                    head += 3;
+                    if(flags & RenderGroup::BUFFER_NORMAL_MASK) {
+                        memcpy(head, &normals[faces[j].corners[k].normal], sizeof(GLfloat) * 3);
+                        head += 3;
+                    }
+                    if(flags & RenderGroup::BUFFER_DIFFUSE_MASK) {
+                        memcpy(head, &diffuse_colors[faces[j].corners[k].diffuse], sizeof(GLfloat) * 4);
+                        head += 4;
+                    }
+                    if(flags & RenderGroup::BUFFER_SPECULAR_MASK) {
+                        memcpy(head, &specular_colors[faces[j].corners[k].specular], sizeof(GLfloat) * 4);
+                        head += 4;
+                    }
+                    for(int l = 0; l < 8; l++) {
+                        if(flags & (RenderGroup::BUFFER_TEXCOORD0_MASK << (2 * l))) {
+                            memcpy(head, &texcoords[faces[j].corners[k].texcoord[l]], sizeof(GLfloat) * 2);
+                            head += 2;
+                        }
+                    }
+                }
+            }
+        }
+        group->load(i, data, flags, face_count[i] * 3);
+        delete[] data;
+    }
 }
 
 }

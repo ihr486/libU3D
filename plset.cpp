@@ -229,4 +229,16 @@ void LineSet::update_resolution(BitStreamReader& reader)
     }
 }
 
+RenderGroup *PointSet::create_render_group()
+{
+    RenderGroup *rg = new RenderGroup();
+    return rg;
+}
+
+RenderGroup *LineSet::create_render_group()
+{
+    RenderGroup *rg = new RenderGroup();
+    return rg;
+}
+
 }

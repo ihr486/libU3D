@@ -4,7 +4,10 @@
 #include <cstdio>
 #include <vector>
 
+#include <GL/glew.h>
+
 #include "bitstream.hpp"
+#include "util.hpp"
 
 namespace U3D
 {
@@ -27,16 +30,16 @@ public:
         reader >> height >> width >> type;
         uint32_t continuation_count = reader.read<uint32_t>();
         if(continuation_count != 1) {
-            throw Error(ERROR_DEVIATION, "Textures with more than one continuations are not supported.");
+            throw U3D_ERROR << "Textures with more than one continuations are not supported.";
         }
         image_data = NULL;
         uint8_t channels;
         reader >> compression_type >> channels >> attributes;
         if(type != channels) {
-            throw Error(ERROR_FORMAT, "Texture type and channel mask do not match.");
+            throw U3D_ERROR << "Texture type and channel mask do not match.";
         }
         if(attributes & 0x0001) {
-            throw Error(ERROR_TODO, "Texture loading from URI is not currently implemented.");
+            throw U3D_ERROR << "Texture loading from URI is not currently implemented.";
         }
         reader >> byte_count;
         byte_position = 0;
