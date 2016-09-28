@@ -47,7 +47,7 @@ void PointSet::update_resolution(BitStreamReader& reader)
         if(resolution > 0) {
             pred_diffuse = diffuse_colors[points[split_point].diffuse];
             pred_specular = specular_colors[points[split_point].specular];
-            for(unsigned int i = 0; i < get_texlayer_count(points[split_point].shading_id); i++) {
+            for(unsigned int i = 0; i < shading_descs[points[split_point].shading_id].texlayer_count; i++) {
                 pred_texcoord[i] = texcoords[points[split_point].texcoord[i]];
             }
         }
@@ -87,7 +87,7 @@ void PointSet::update_resolution(BitStreamReader& reader)
                 }
                 last_specular = new_point.specular;
             }
-            for(unsigned int j = 0; j < get_texlayer_count(new_point.shading_id); j++) {
+            for(unsigned int j = 0; j < shading_descs[new_point.shading_id].texlayer_count; j++) {
                 uint8_t dup_flag = reader[cTexCDup].read<uint8_t>();
                 if(!(dup_flag & 0x2)) {
                     uint8_t texcoord_sign = reader[cTexCoordSign].read<uint8_t>();
@@ -161,7 +161,7 @@ void LineSet::update_resolution(BitStreamReader& reader)
                 Terminal& terminal = lines[split_lines[j]].get_terminal(split_position);
                 pred_diffuse += diffuse_colors[terminal.diffuse];
                 pred_specular += specular_colors[terminal.specular];
-                for(unsigned int k = 0; k < get_texlayer_count(lines[split_lines[j]].shading_id); k++) {
+                for(unsigned int k = 0; k < shading_descs[lines[split_lines[j]].shading_id].texlayer_count; k++) {
                     pred_texcoord[k] += texcoords[terminal.texcoord[k]];
                 }
             }
@@ -206,7 +206,7 @@ void LineSet::update_resolution(BitStreamReader& reader)
                     }
                     last_specular = new_line.terminals[j].specular;
                 }
-                for(unsigned int k = 0; k < get_texlayer_count(new_line.shading_id); k++) {
+                for(unsigned int k = 0; k < shading_descs[new_line.shading_id].texlayer_count; k++) {
                     uint8_t dup_flag = reader[cTexCDup].read<uint8_t>();
                     if(!(dup_flag & 0x2)) {
                         uint8_t texcoord_sign = reader[cTexCoordSign].read<uint8_t>();
@@ -231,14 +231,104 @@ void LineSet::update_resolution(BitStreamReader& reader)
 
 RenderGroup *PointSet::create_render_group()
 {
-    RenderGroup *rg = new RenderGroup();
-    return rg;
+    RenderGroup *group = new RenderGroup(GL_POINTS, shading_descs.size());
+    std::vector<int> point_count(shading_descs.size());
+    for(unsigned int i = 0; i < points.size(); i++) {
+        point_count[points[i].shading_id]++;
+    }
+    for(unsigned int i = 0; i < shading_descs.size(); i++) {
+        uint32_t flags = RenderGroup::BUFFER_POSITION_MASK | RenderGroup::BUFFER_NORMAL_MASK;
+        if(shading_descs[i].attributes & VERTEX_DIFFUSE_COLOR) {
+            flags |= RenderGroup::BUFFER_DIFFUSE_MASK;
+        }
+        if(shading_descs[i].attributes & VERTEX_SPECULAR_COLOR) {
+            flags |= RenderGroup::BUFFER_SPECULAR_MASK;
+        }
+        for(unsigned int j = 0; j < shading_descs[i].texlayer_count; j++) {
+            if(shading_descs[i].texcoord_dims[j] == 2) {
+                flags |= RenderGroup::BUFFER_TEXCOORD0_MASK << (2 * j);
+            }
+        }
+        int stride = __builtin_popcount(flags);
+        GLfloat *data = new GLfloat[stride * point_count[i]];
+        GLfloat *head = data;
+        for(unsigned int j = 0; j < points.size(); j++) {
+            if(points[j].shading_id == i) {
+                memcpy(head, &positions[points[j].position], sizeof(GLfloat) * 3);
+                memcpy(head + 3, &normals[points[j].normal], sizeof(GLfloat) * 3);
+                head += 6;
+                if(flags & RenderGroup::BUFFER_DIFFUSE_MASK) {
+                    memcpy(head, &diffuse_colors[points[j].diffuse], sizeof(GLfloat) * 4);
+                    head += 4;
+                }
+                if(flags & RenderGroup::BUFFER_SPECULAR_MASK) {
+                    memcpy(head, &specular_colors[points[j].specular], sizeof(GLfloat) * 4);
+                    head += 4;
+                }
+                for(int l = 0; l < 8; l++) {
+                    if(flags & (RenderGroup::BUFFER_TEXCOORD0_MASK << (2 * l))) {
+                        memcpy(head, &texcoords[points[j].texcoord[l]], sizeof(GLfloat) * 2);
+                        head += 2;
+                    }
+                }
+            }
+        }
+        group->load(i, data, flags, point_count[i] * 3);
+        delete[] data;
+    }
+    return group;
 }
 
 RenderGroup *LineSet::create_render_group()
 {
-    RenderGroup *rg = new RenderGroup();
-    return rg;
+    RenderGroup *group = new RenderGroup(GL_LINES, shading_descs.size());
+    std::vector<int> line_count(shading_descs.size());
+    for(unsigned int i = 0; i < lines.size(); i++) {
+        line_count[lines[i].shading_id]++;
+    }
+    for(unsigned int i = 0; i < shading_descs.size(); i++) {
+        uint32_t flags = RenderGroup::BUFFER_POSITION_MASK | RenderGroup::BUFFER_NORMAL_MASK;
+        if(shading_descs[i].attributes & VERTEX_DIFFUSE_COLOR) {
+            flags |= RenderGroup::BUFFER_DIFFUSE_MASK;
+        }
+        if(shading_descs[i].attributes & VERTEX_SPECULAR_COLOR) {
+            flags |= RenderGroup::BUFFER_SPECULAR_MASK;
+        }
+        for(unsigned int j = 0; j < shading_descs[i].texlayer_count; j++) {
+            if(shading_descs[i].texcoord_dims[j] == 2) {
+                flags |= RenderGroup::BUFFER_TEXCOORD0_MASK << 2 * j;
+            }
+        }
+        int stride = __builtin_popcount(flags);
+        GLfloat *data = new GLfloat[line_count[i] * 2 * stride];
+        GLfloat *head = data;
+        for(unsigned int j = 0; j < lines.size(); j++) {
+            if(lines[j].shading_id == i) {
+                for(int k = 0; k < 2; k++) {
+                    memcpy(head, &positions[lines[j].terminals[k].position], sizeof(GLfloat) * 3);
+                    memcpy(head + 3, &normals[lines[j].terminals[k].normal], sizeof(GLfloat) * 3);
+                    head += 6;
+                    if(flags & RenderGroup::BUFFER_DIFFUSE_MASK) {
+                        memcpy(head, &diffuse_colors[lines[j].terminals[k].diffuse], sizeof(GLfloat) * 4);
+                        head += 4;
+                    }
+                    if(flags & RenderGroup::BUFFER_SPECULAR_MASK) {
+                        memcpy(head, &specular_colors[lines[j].terminals[k].specular], sizeof(GLfloat) * 4);
+                        head += 4;
+                    }
+                    for(int l = 0; l < 8; l++) {
+                        if(flags & (RenderGroup::BUFFER_TEXCOORD0_MASK << (2 * l))) {
+                            memcpy(head, &texcoords[lines[j].terminals[k].texcoord[l]], sizeof(GLfloat) * 2);
+                            head += 2;
+                        }
+                    }
+                }
+            }
+        }
+        group->load(i, data, flags, line_count[i] * 2);
+        delete[] data;
+    }
+    return group;
 }
 
 }

@@ -59,7 +59,7 @@ public:
         }
     }
     ~RenderGroup() {
-        for(int i = 0; i < elements.size(); i++) {
+        for(unsigned int i = 0; i < elements.size(); i++) {
             glDeleteBuffers(1, &elements[i].buffer);
         }
     }
@@ -71,7 +71,7 @@ public:
         elements[index].flags = flags;
     }
     void render() {
-        for(int i = 0; i < elements.size(); i++) {
+        for(unsigned int i = 0; i < elements.size(); i++) {
             int stride = sizeof(GLfloat) * __builtin_popcount(elements[i].flags);
             glBindBuffer(GL_ARRAY_BUFFER, elements[i].buffer);
             glEnableVertexAttribArray(0);
@@ -124,7 +124,8 @@ protected:
     uint32_t diffuse_count, specular_count, texcoord_count;
     struct ShadingDesc {
         uint32_t attributes;
-        std::vector<uint32_t> texcoord_dims;
+        uint32_t texcoord_dims[8];
+        uint32_t texlayer_count;
     };
     static const uint32_t VERTEX_DIFFUSE_COLOR = 1, VERTEX_SPECULAR_COLOR = 2;
     std::vector<ShadingDesc> shading_descs;
@@ -155,11 +156,6 @@ protected:
 public:
     CLOD_Object(bool clod_desc_flag, BitStreamReader& reader);
     CLOD_Object() : face_count(0), position_count(0), normal_count(0), diffuse_count(0), specular_count(0), texcoord_count(0) , min_res(0), max_res(0) {}
-protected:
-    uint32_t get_texlayer_count(uint32_t shading_id) const
-    {
-        return shading_descs[shading_id].texcoord_dims.size();
-    }
 };
 
 template<typename T> static inline void insert_unique(std::vector<T>& cont, T val)

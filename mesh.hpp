@@ -98,7 +98,7 @@ class CLOD_Mesh : private CLOD_Object, public ModelResource
             std::fprintf(stderr, "Listing texcoords...\n");
             std::vector<uint32_t> ret;
             for(unsigned int i = 0; i < positions[position].size(); i++) {
-                if(shading_descs[faces[positions[position][i]].shading_id].texcoord_dims.size() > layer) {
+                if(shading_descs[faces[positions[position][i]].shading_id].texlayer_count > layer) {
                     Corner& corner = faces[positions[position][i]].get_corner(position);
                     ret.push_back(corner.texcoord[layer]);
                 }

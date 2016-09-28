@@ -29,7 +29,7 @@ void Texture::load_continuation(BitStreamReader& reader)
 Texture::Texture()
 {
     height = 8, width = 8, type = RGB, compression_type = RAW;
-    image_data = default_texture;
+    image_data = const_cast<uint8_t *>(default_texture);
     byte_count = sizeof(default_texture);
 }
 
@@ -45,7 +45,7 @@ GLuint Texture::load_texture()
         if(surface == NULL) {
             throw U3D_ERROR << "Failed to load a texture image.";
         }
-        switch(surface->format) {
+        switch(surface->format->format) {
         case SDL_PIXELFORMAT_RGB24:
         case SDL_PIXELFORMAT_RGB888:
             glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, surface->pixels);

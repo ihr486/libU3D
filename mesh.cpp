@@ -17,10 +17,9 @@ CLOD_Object::CLOD_Object(bool clod_desc_flag, BitStreamReader& reader)
     shading_descs.resize(shading_count);
     for(unsigned int i = 0; i < shading_count; i++) {
         shading_descs[i].attributes = reader.read<uint32_t>();
-        uint32_t texlayer_count = reader.read<uint32_t>();
-        std::fprintf(stderr, "Shading #%u: Attribute = %u, TexLayer count = %u.\n", i, shading_descs[i].attributes, texlayer_count);
-        shading_descs[i].texcoord_dims.resize(texlayer_count);
-        for(unsigned int j = 0; j < texlayer_count; j++) {
+        shading_descs[i].texlayer_count = reader.read<uint32_t>();
+        std::fprintf(stderr, "Shading #%u: Attribute = %u, TexLayer count = %u.\n", i, shading_descs[i].attributes, shading_descs[i].texlayer_count);
+        for(unsigned int j = 0; j < shading_descs[i].texlayer_count; j++) {
             shading_descs[i].texcoord_dims[j] = reader.read<uint32_t>();
         }
         reader.read<uint32_t>();
@@ -100,7 +99,7 @@ void CLOD_Mesh::create_base_mesh(BitStreamReader& reader)
             if(shading_descs[faces[i].shading_id].attributes & 0x00000002) {
                 reader[specular_count] >> faces[i].corners[j].specular;
             }
-            for(unsigned int k = 0; k < get_texlayer_count(faces[i].shading_id); k++) {
+            for(unsigned int k = 0; k < shading_descs[faces[i].shading_id].texlayer_count; k++) {
                 reader[texcoord_count] >> faces[i].corners[j].texcoord[k];
             }
         }
@@ -143,7 +142,7 @@ void CLOD_Mesh::update_resolution(BitStreamReader& reader)
             if(shading_attr & 0x00000002) {
                 specular_average += specular_colors[corner.specular];
             }
-            if(get_texlayer_count(face.shading_id) > 0) {
+            if(shading_descs[face.shading_id].texlayer_count > 0) {
                 texcoord_average += texcoords[corner.texcoord[0]];
             }
             color_match_count++;
@@ -229,7 +228,7 @@ void CLOD_Mesh::update_resolution(BitStreamReader& reader)
             Corner& corner = face.get_corner(split_position);
             split_diffuse_colors.push_back(corner.diffuse);
             split_specular_colors.push_back(corner.specular);
-            for(unsigned int l = 0; l < get_texlayer_count(face.shading_id); l++) {
+            for(unsigned int l = 0; l < shading_descs[face.shading_id].texlayer_count; l++) {
                 split_texcoords[l].push_back(corner.texcoord[l]);
             }
         }
@@ -326,7 +325,7 @@ void CLOD_Mesh::update_resolution(BitStreamReader& reader)
                     corner.specular = new_index;
                 }
             }
-            for(unsigned int k = 0; k < get_texlayer_count(face.shading_id); k++) {
+            for(unsigned int k = 0; k < shading_descs[face.shading_id].texlayer_count; k++) {
                 uint8_t keep_change = reader[cTCKeepChange].read<uint8_t>();
                 if(keep_change == 0x1) {
                     uint8_t change_type = reader[cTCChangeType].read<uint8_t>();
@@ -359,7 +358,7 @@ void CLOD_Mesh::update_resolution(BitStreamReader& reader)
                 Corner& corner = face.get_corner(new_faces[j].corners[2].position);
                 third_diffuse_colors.push_back(corner.diffuse);
                 third_specular_colors.push_back(corner.specular);
-                for(unsigned int m = 0; m < get_texlayer_count(face.shading_id); m++) {
+                for(unsigned int m = 0; m < shading_descs[face.shading_id].texlayer_count; m++) {
                     third_texcoords[m].push_back(corner.texcoord[m]);
                 }
             }
@@ -412,7 +411,7 @@ void CLOD_Mesh::update_resolution(BitStreamReader& reader)
                     if(k == 0) insert_unique(split_specular_colors, new_faces[j].corners[0].specular);
                 }
             }
-            for(unsigned int k = 0; k < get_texlayer_count(new_faces[j].shading_id); k++) {
+            for(unsigned int k = 0; k < shading_descs[new_faces[j].shading_id].texlayer_count; k++) {
                 uint8_t texcoord_dup_flag = reader[cTexCDup].read<uint8_t>();
                 for(int l = 0; l < 3; l++) {
                     if(!(texcoord_dup_flag & (1 << l))) {
@@ -562,7 +561,7 @@ void CLOD_Mesh::dump_author_mesh()
                 std::printf("\t\tDiffuse %u [%f %f %f %f]\n", corner.diffuse, diffuse_colors[corner.diffuse].r, diffuse_colors[corner.diffuse].g, diffuse_colors[corner.diffuse].b, diffuse_colors[corner.diffuse].a);
             if(attr & 0x00000002)
                 std::printf("\t\tSpecular %u [%f %f %f %f]\n", corner.specular, specular_colors[corner.specular].r, specular_colors[corner.specular].g, specular_colors[corner.specular].b, specular_colors[corner.specular].a);
-            unsigned int layers = get_texlayer_count(face.shading_id);
+            unsigned int layers = shading_descs[face.shading_id].texlayer_count;
             for(unsigned int k = 0; k < layers; k++) {
                 std::printf("\t\tTexCoord #%u %u [%f %f %f %f]\n", k, corner.texcoord[k], texcoords[corner.texcoord[k]].u, texcoords[corner.texcoord[k]].v, texcoords[corner.texcoord[k]].s, texcoords[corner.texcoord[k]].t);
             }
@@ -579,7 +578,6 @@ RenderGroup *CLOD_Mesh::create_render_group()
     }
     for(unsigned int i = 0; i < shading_descs.size(); i++) {
         uint32_t flags = RenderGroup::BUFFER_POSITION_MASK;
-        GLfloat *data = new GLfloat[face_count[i] * 3];
         if(!(attributes & EXCLUDE_NORMALS)) {
             flags |= RenderGroup::BUFFER_NORMAL_MASK;
         }
@@ -589,17 +587,17 @@ RenderGroup *CLOD_Mesh::create_render_group()
         if(shading_descs[i].attributes & VERTEX_SPECULAR_COLOR) {
             flags |= RenderGroup::BUFFER_SPECULAR_MASK;
         }
-        for(int j = 0; j < 8; j++) {
+        for(int j = 0; j < shading_descs[i].texlayer_count; j++) {
             if(shading_descs[i].texcoord_dims[j] == 2) {
                 flags |= RenderGroup::BUFFER_TEXCOORD0_MASK << 2 * j;
             }
         }
-        int index = 0;
         int stride = __builtin_popcount(flags);
+        GLfloat *data = new GLfloat[face_count[i] * 3 * stride];
+        GLfloat *head = data;
         for(unsigned int j = 0; j < faces.size(); j++) {
             if(faces[j].shading_id == i) {
                 for(int k = 0; k < 3; k++) {
-                    GLfloat *head = &data[index * stride + 0];
                     memcpy(head, &positions[faces[j].corners[k].position], sizeof(GLfloat) * 3);
                     head += 3;
                     if(flags & RenderGroup::BUFFER_NORMAL_MASK) {
@@ -626,6 +624,7 @@ RenderGroup *CLOD_Mesh::create_render_group()
         group->load(i, data, flags, face_count[i] * 3);
         delete[] data;
     }
+    return group;
 }
 
 }
