@@ -587,7 +587,7 @@ RenderGroup *CLOD_Mesh::create_render_group()
         if(shading_descs[i].attributes & VERTEX_SPECULAR_COLOR) {
             flags |= RenderGroup::BUFFER_SPECULAR_MASK;
         }
-        for(int j = 0; j < shading_descs[i].texlayer_count; j++) {
+        for(unsigned int j = 0; j < shading_descs[i].texlayer_count; j++) {
             if(shading_descs[i].texcoord_dims[j] == 2) {
                 flags |= RenderGroup::BUFFER_TEXCOORD0_MASK << 2 * j;
             }

@@ -2,6 +2,7 @@
 
 #include <math.h>
 #include <stdint.h>
+#include <iostream>
 
 namespace U3D
 {
@@ -57,11 +58,21 @@ static inline Vector3f slerp(const Vector3f& a, const Vector3f& b, float t)
     return a * sinf((1 - t) * omega) / sinf(omega) + b * sinf(t * omega) / sinf(omega);
 }
 
+static inline std::ostream& operator<<(std::ostream& s, const Vector3f& v)
+{
+    return s << "[" << v.x << " " << v.y << " " << v.z << "]";
+}
+
 struct Vector2f
 {
     float u, v;
     Vector2f() : u(0), v(0) {}
 };
+
+static inline std::ostream& operator<<(std::ostream& s, const Vector2f& v)
+{
+    return s << "[" << v.u << " " << v.v << "]";
+}
 
 struct Color3f
 {
@@ -69,6 +80,11 @@ struct Color3f
     Color3f() : r(0), g(0), b(0) {}
     Color3f(float r, float g, float b) : r(r), g(g), b(b) {}
 };
+
+static inline std::ostream& operator<<(std::ostream& s, const Color3f& c)
+{
+    return s << "[" << c.r << " " << c.g << " " << c.b << "]";
+}
 
 struct Color4f
 {
@@ -90,6 +106,11 @@ struct Color4f
         return Color4f(inverse_quant(signs & 1, r, iq), inverse_quant(signs & 2, g, iq), inverse_quant(signs & 4, b, iq), inverse_quant(signs & 8, a, iq));
     }
 };
+
+static inline std::ostream& operator<<(std::ostream& s, const Color4f& c)
+{
+    return s << "[" << c.r << " " << c.g << " " << c.b << " " << c.a << "]";
+}
 
 struct Matrix4f
 {
@@ -195,5 +216,10 @@ struct TexCoord4f
         return TexCoord4f(inverse_quant(signs & 1, u, iq), inverse_quant(signs & 2, v, iq), inverse_quant(signs & 4, s, iq), inverse_quant(signs & 8, t, iq));
     }
 };
+
+static inline std::ostream& operator<<(std::ostream& s, const TexCoord4f& c)
+{
+    return s << "[" << c.u << " " << c.v << " " << c.s << " " << c.t << "]";
+}
 
 }
