@@ -81,7 +81,7 @@ struct Color4f
         r /= val, g /= val, b /= val, a /= val;
         return *this;
     }
-    Color4f operator+(const Color4f& c) {
+    Color4f operator+(const Color4f& c) const {
         return Color4f(r + c.r, g + c.g, b + c.b, a + c.a);
     }
     Color4f() : r(0), g(0), b(0), a(0) {}
@@ -101,7 +101,7 @@ struct Matrix4f
             }
         }
     }
-    Matrix4f operator*(const Matrix4f& mat) {
+    Matrix4f operator*(const Matrix4f& mat) const {
         Matrix4f ret;
         ret.m[0][0] = m[0][0] * mat.m[0][0] + m[1][0] * mat.m[0][1] + m[2][0] * mat.m[0][2] + m[3][0] * mat.m[0][3];
         ret.m[1][0] = m[0][0] * mat.m[1][0] + m[1][0] * mat.m[1][1] + m[2][0] * mat.m[1][2] + m[3][0] * mat.m[1][3];
@@ -124,7 +124,27 @@ struct Matrix4f
         ret.m[3][3] = m[0][3] * mat.m[3][0] + m[1][3] * mat.m[3][1] + m[2][3] * mat.m[3][2] + m[3][3] * mat.m[3][3];
         return ret;
     }
-    Vector3f operator*(const Vector3f& v) {
+    Matrix4f inverse_as_view() const {
+        Matrix4f ret;
+        ret.m[0][0] = m[0][0];
+        ret.m[1][0] = m[0][1];
+        ret.m[2][0] = m[0][2];
+        ret.m[3][0] = -m[0][0] * m[3][0] - m[0][1] * m[3][1] - m[0][2] * m[3][2];
+        ret.m[0][1] = m[1][0];
+        ret.m[1][1] = m[1][1];
+        ret.m[2][1] = m[1][2];
+        ret.m[3][1] = -m[1][0] * m[3][0] - m[1][1] * m[3][1] - m[1][2] * m[3][2];
+        ret.m[0][2] = m[2][0];
+        ret.m[1][2] = m[2][1];
+        ret.m[2][2] = m[2][2];
+        ret.m[3][2] = -m[2][0] * m[3][0] - m[2][1] * m[3][1] - m[2][2] * m[3][2];
+        ret.m[0][3] = 0;
+        ret.m[1][3] = 0;
+        ret.m[2][3] = 0;
+        ret.m[3][3] = 1;
+        return ret;
+    }
+    Vector3f operator*(const Vector3f& v) const {
         Vector3f ret;
         ret.x = m[0][0] * v.x + m[1][0] * v.y + m[2][0] * v.z + m[3][0];
         ret.y = m[0][1] * v.x + m[1][1] * v.y + m[2][1] * v.z + m[3][1];
@@ -137,7 +157,7 @@ struct Quaternion4f
 {
     float w, x, y, z;
     Quaternion4f() : w(0), x(0), y(0), z(0) {}
-    Quaternion4f operator*(const Quaternion4f& q) {
+    Quaternion4f operator*(const Quaternion4f& q) const {
         Quaternion4f ret;
         ret.w = w * q.w - x * q.x - y * q.y - z * q.z;
         ret.x = w * q.x + q.w * x + y * q.z - z * q.y;
@@ -166,7 +186,7 @@ struct TexCoord4f
         u /= val, v /= val, s /= val, t /= val;
         return *this;
     }
-    TexCoord4f operator+(const TexCoord4f& c) {
+    TexCoord4f operator+(const TexCoord4f& c) const {
         return TexCoord4f(u + c.u, v + c.v, s + c.s, t + c.t);
     }
     TexCoord4f() : u(0), v(0), s(0), t(0) {}
