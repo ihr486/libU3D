@@ -34,10 +34,8 @@ template<typename T> class SafePtr
     void (*deleter)(T);
 public:
     SafePtr(T ptr, void (*deleter)(T)) : ptr(ptr), deleter(deleter) {}
-    SafePtr(T ptr) : ptr(ptr), deleter(NULL) {}
     ~SafePtr() {
-        if(deleter != NULL) deleter(ptr);
-        else delete ptr;
+        deleter(ptr);
     }
     operator T() { return ptr; }
     operator bool() { return ptr != NULL; }

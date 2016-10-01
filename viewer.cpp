@@ -1,5 +1,21 @@
-#include <GL/glew.h>
 #include "viewer.hpp"
+#include <GL/glew.h>
+#include <math.h>
+
+namespace
+{
+void load_projection_matrix(GLuint index, GLfloat fovx, GLfloat aspect, GLfloat near, GLfloat far)
+{
+    GLfloat f = 1 / tanf(fovx);
+    GLfloat mat[16] = {
+        f, 0, 0, 0,
+        0, f / aspect, 0, 0,
+        0, 0, (near + far) / (near - far), 2 * far * near / (near - far),
+        0, 0, -1, 0
+    };
+    glUniformMatrix4fv(index, 1, GL_FALSE, mat);
+}
+}
 
 Viewer::Viewer()
 {
@@ -25,14 +41,3 @@ void Viewer::render()
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 }
 
-static void Viewer::load_projection_matrix(GLuint index, GLfloat fovx, GLfloat aspect, GLfloat near, GLfloat far)
-{
-    GLfloat f = 1 / tanf(fovx);
-    GLfloat mat[16] = {
-        f, 0, 0, 0,
-        0, f / aspect, 0, 0,
-        0, 0, (near + far) / (near - far), 2 * far * near / (near - far),
-        0, 0, -1, 0
-    };
-    glUniformMatrix4fv(index, 1, GL_FALSE, mat);
-}
