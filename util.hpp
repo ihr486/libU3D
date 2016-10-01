@@ -28,13 +28,13 @@ public:
     virtual ~Error() throw() {}
 };
 
-template<typename T> class SafePtr
+template<typename T> class AutoHandle
 {
     T ptr;
     void (*deleter)(T);
 public:
-    SafePtr(T ptr, void (*deleter)(T)) : ptr(ptr), deleter(deleter) {}
-    ~SafePtr() {
+    AutoHandle(T ptr, void (*deleter)(T)) : ptr(ptr), deleter(deleter) {}
+    ~AutoHandle() {
         deleter(ptr);
     }
     operator T() { return ptr; }
@@ -42,8 +42,8 @@ public:
     T& operator*() { return *ptr; }
     T operator->() { return ptr; }
 private:
-    SafePtr(const SafePtr& old);
-    void operator=(const SafePtr& old);
+    AutoHandle(const AutoHandle& old);
+    void operator=(const AutoHandle& old);
 };
 
 #define U3D_LOG (std::cout << __FILE__ ":" << __LINE__ << ":")

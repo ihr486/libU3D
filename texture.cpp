@@ -29,7 +29,8 @@ void Texture::load_continuation(BitStreamReader& reader)
 Texture::Texture()
 {
     height = 8, width = 8, type = RGB, compression_type = RAW;
-    image_data = const_cast<uint8_t *>(default_texture);
+    image_data = new uint8_t[sizeof(default_texture)];
+    memcpy(image_data, default_texture, sizeof(default_texture));
     byte_count = sizeof(default_texture);
 }
 

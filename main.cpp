@@ -512,12 +512,12 @@ int main(int argc, char *argv[])
             throw U3D_ERROR << "Failed to initialize SDL2.";
         }
 
-        U3D::SafePtr<SDL_Window *> window(SDL_CreateWindow("Universal 3D testbed", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, 480, 360, SDL_WINDOW_OPENGL | SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE), SDL_DestroyWindow);
+        U3D::AutoHandle<SDL_Window *> window(SDL_CreateWindow("Universal 3D testbed", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, 480, 360, SDL_WINDOW_OPENGL | SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE), SDL_DestroyWindow);
         if(!window) {
             throw U3D_ERROR << "Failed to create an SDL2 window.";
         }
 
-        U3D::SafePtr<SDL_GLContext> context(SDL_GL_CreateContext(window), SDL_GL_DeleteContext);
+        U3D::AutoHandle<SDL_GLContext> context(SDL_GL_CreateContext(window), SDL_GL_DeleteContext);
         if(context == NULL) {
             throw U3D_ERROR << "Failed to create an OpenGL context.";
         }
