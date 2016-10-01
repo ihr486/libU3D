@@ -28,8 +28,28 @@ public:
     virtual ~Error() throw() {}
 };
 
+template<typename T> class SafePtr
+{
+    T ptr;
+    void (*deleter)(T);
+public:
+    SafePtr(T ptr, void (*deleter)(T)) : ptr(ptr), deleter(deleter) {}
+    SafePtr(T ptr) : ptr(ptr), deleter(NULL) {}
+    ~SafePtr() {
+        if(deleter != NULL) deleter(ptr);
+        else delete ptr;
+    }
+    operator T() { return ptr; }
+    operator bool() { return ptr != NULL; }
+    T& operator*() { return *ptr; }
+    T operator->() { return ptr; }
+private:
+    SafePtr(const SafePtr& old);
+    void operator=(const SafePtr& old);
+};
+
 #define U3D_LOG (std::cout << __FILE__ ":" << __LINE__ << ":")
 #define U3D_WARNING (std::cerr << __FILE__ ":" << __LINE__ << ":")
-#define U3D_ERROR (Error(__FILE__, __LINE__))
+#define U3D_ERROR (U3D::Error(__FILE__, __LINE__))
 
 }

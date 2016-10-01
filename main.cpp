@@ -15,37 +15,10 @@
 #include "texture.hpp"
 #include "viewer.hpp"
 #include "shader.hpp"
+#include "util.hpp"
 
 namespace U3D
 {
-
-class FileHeader
-{
-    uint16_t major_version, minor_version;
-    uint32_t profile_identifier;
-    uint32_t declaration_size;
-    uint64_t file_size;
-    uint32_t character_encoding;
-    double units_scaling_factor;
-public:
-    void read_header_block(BitStreamReader& reader) {
-        reader >> major_version >> minor_version >> profile_identifier >> declaration_size >> file_size >> character_encoding;
-        units_scaling_factor = (profile_identifier & 0x8) ? reader.read<double>() : 1;
-        std::fprintf(stderr, "FileHeaderBlock created.\n");
-    }
-};
-
-class PriorityManager
-{
-    uint32_t priority;
-public:
-    PriorityManager() : priority(0) {}
-    uint32_t read_update_block(BitStreamReader& reader) {
-        reader >> priority;
-        std::fprintf(stderr, "New priority : %u.\n", priority);
-        return priority;
-    }
-};
 
 class Node
 {
@@ -339,8 +312,6 @@ static Texture *create_texture_modifier_chain(BitStreamReader& reader)
 
 class U3DContext
 {
-    FileHeader header;
-    PriorityManager priority;
     std::map<std::string, ModelResource *> models;
     std::map<std::string, LightResource *> lights;
     std::map<std::string, ViewResource *> views;
@@ -349,6 +320,18 @@ class U3DContext
     std::map<std::string, Material *> materials;
     std::map<std::string, Node *> nodes;
     BitStreamReader reader;
+private:
+    void read_header_block(BitStreamReader& reader) {
+        uint16_t major_version, minor_version;
+        uint32_t profile_identifier;
+        uint32_t declaration_size;
+        uint64_t file_size;
+        uint32_t character_encoding;
+        double units_scaling_factor;
+        reader >> major_version >> minor_version >> profile_identifier >> declaration_size >> file_size >> character_encoding;
+        units_scaling_factor = (profile_identifier & 0x8) ? reader.read<double>() : 1;
+        std::fprintf(stderr, "FileHeaderBlock created.\n");
+    }
 public:
     U3DContext(const std::string& filename) : reader(filename)
     {
@@ -365,7 +348,7 @@ public:
 
             switch(reader.get_type()) {
             case 0x00443355:    //File Header Block
-                header.read_header_block(reader);
+                read_header_block(reader);
                 break;
             case 0xFFFFFF14:    //Modifier Chain Block
                 name = reader.read_str();
@@ -383,7 +366,7 @@ public:
                 }
                 break;
             case 0xFFFFFF15:    //Priority Update Block
-                priority.read_update_block(reader);
+                reader.read<uint32_t>();
                 break;
             case 0xFFFFFF16:    //New Object Type Block
                 std::fprintf(stderr, "New Object Type block is not supported in the current version.\n");
@@ -524,42 +507,44 @@ int main(int argc, char *argv[])
     fprintf(stderr, "%s successfully parsed.\n", lpC);
 #endif
 
+    try {
+        if(SDL_Init(SDL_INIT_VIDEO) < 0) {
+            throw U3D_ERROR << "Failed to initialize SDL2.";
+        }
 
-    if(SDL_Init(SDL_INIT_VIDEO) < 0) {
-        EXIT("Failed to initialize SDL2.");
-    }
+        U3D::SafePtr<SDL_Window *> window(SDL_CreateWindow("Universal 3D testbed", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, 480, 360, SDL_WINDOW_OPENGL | SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE), SDL_DestroyWindow);
+        if(!window) {
+            throw U3D_ERROR << "Failed to create an SDL2 window.";
+        }
 
-    SDL_Window *window = SDL_CreateWindow("Universal 3D testbed", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, 480, 360, SDL_WINDOW_OPENGL | SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE);
-    if(window == NULL) {
-        EXIT("Failed to create an SDL2 window.");
-    }
+        U3D::SafePtr<SDL_GLContext> context(SDL_GL_CreateContext(window), SDL_GL_DeleteContext);
+        if(context == NULL) {
+            throw U3D_ERROR << "Failed to create an OpenGL context.";
+        }
 
-    SDL_GLContext context = SDL_GL_CreateContext(window);
-    if(context == NULL) {
-        EXIT("Failed to create an OpenGL context.");
-    }
+        {
+            Viewer viewer;
 
-    {
-        Viewer viewer;
-
-        SDL_Event event;
-        do {
-            while(SDL_PollEvent(&event)) {
-                if(event.type == SDL_QUIT) {
-                    break;
-                }
-                if(event.type == SDL_WINDOWEVENT) {
-                    if(event.window.event == SDL_WINDOWEVENT_RESIZED) {
-                        viewer.resize(event.window.data1, event.window.data2);
+            SDL_Event event;
+            do {
+                while(SDL_PollEvent(&event)) {
+                    if(event.type == SDL_QUIT) {
+                        break;
+                    }
+                    if(event.type == SDL_WINDOWEVENT) {
+                        if(event.window.event == SDL_WINDOWEVENT_RESIZED) {
+                            viewer.resize(event.window.data1, event.window.data2);
+                        }
                     }
                 }
-            }
-            viewer.render();
+                viewer.render();
 
-            SDL_GL_SwapWindow(window);
-        } while(event.type != SDL_QUIT);
+                SDL_GL_SwapWindow(window);
+            } while(event.type != SDL_QUIT);
+        }
+    } catch(const U3D::Error& err) {
+        std::cerr << err.what() << std::endl;
     }
-
     SDL_Quit();
     
     return 0;
