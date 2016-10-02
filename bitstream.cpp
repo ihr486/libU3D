@@ -1,4 +1,5 @@
 #include "bitstream.hpp"
+#include "util.hpp"
 
 #include <stdlib.h>
 
@@ -29,14 +30,15 @@ BitStreamReader::BitStreamReader(const std::string& filename) : bit_position(0),
 {
     ifs.open(filename.c_str(), std::ios::in);
     if(!ifs.is_open()) {
-        std::fprintf(stderr, "Failed to open: %s.\n", filename.c_str());
+        U3D_WARNING << "Failed to open: " << filename << "." << std::endl;
     } else {
-        std::fprintf(stderr, "%s opened.\n", filename.c_str());
+        U3D_LOG << filename << " opened." << std::endl;
     }
 }
 
 bool BitStreamReader::open_block()
 {
+    if(!ifs.is_open()) return false;
     reset();
     type = read_word_direct();
     if(ifs.eof()) return false;
@@ -51,7 +53,6 @@ bool BitStreamReader::open_block()
     data_buffer[(data_size + 3) / 4] = 0;
     metadata_buffer[(metadata_size + 3) / 4] = 0;
     bit_position = 0;
-    std::fprintf(stderr, "Block opened : Type = 0x%08X, Data Size = %u, Metadata Size = %u.\n", type, data_size, metadata_size);
     return true;
 }
 
@@ -128,8 +129,7 @@ uint32_t BitStreamReader::read_dynamic_symbol(uint32_t context)
     }
     bit_position += bit_count;
     if(bit_position >= 8 * data_size) {
-        std::fprintf(stderr, "Data buffer overrun.\n");
-        exit(0);
+        U3D_ERROR << "Data buffer overrun.";
     }
     return symbol;
 }

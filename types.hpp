@@ -47,6 +47,9 @@ struct Vector3f
         x += v.x, y += v.y, z += v.z;
         return *this;
     }
+    float size() const {
+        return sqrtf(x * x + y * y + z * z);
+    }
     static Vector3f dequantize(uint8_t signs, uint32_t x, uint32_t y, uint32_t z, float iq) {
         return Vector3f(inverse_quant(signs & 1, x, iq), inverse_quant(signs & 2, y, iq), inverse_quant(signs & 4, z, iq));
     }
@@ -199,12 +202,13 @@ struct Matrix4f
     }
     bool is_view() const {
         float epsilon = 1E-6f; //Dimensionless
-        float xn = sqrtf(m[0][0] * m[0][0] + m[1][0] * m[1][0] + m[2][0] * m[2][0]);
-        if(xn < 1 - epsilon || 1 + epsilon < xn) return false;
-        float yn = sqrtf(m[0][1] * m[0][1] + m[1][1] * m[1][1] + m[2][1] * m[2][1]);
-        if(yn < 1 - epsilon || 1 + epsilon < yn) return false;
-        float zn = sqrtf(m[0][2] * m[0][2] + m[1][2] * m[1][2] + m[2][2] * m[2][2]);
-        if(zn < 1 - epsilon || 1 + epsilon < zn) return false;
+        Vector3f xv(m[0][0], m[1][0], m[2][0]);
+        if(xv.size() < 1 - epsilon || 1 + epsilon < xv.size()) return false;
+        Vector3f yv(m[0][1], m[1][1], m[2][1]);
+        if(yv.size() < 1 - epsilon || 1 + epsilon < yv.size()) return false;
+        Vector3f zv(m[0][2], m[1][2], m[2][2]);
+        if(zv.size() < 1 - epsilon || 1 + epsilon < zv.size()) return false;
+        if(fabsf(xv * yv) > epsilon || fabsf(yv * zv) > epsilon || fabsf(zv * xv) > epsilon) return false;
         return true;
     }
 };
