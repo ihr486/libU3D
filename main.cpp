@@ -568,6 +568,11 @@ int main(int argc, char *argv[])
         if(model.get_world_transform(&view_matrix, defaultview, model.get_node(""))) {
             U3D_LOG << "View matrix = " << std::endl << view_matrix << std::endl;
         }
+        if(!view_matrix.is_view()) {
+            U3D_WARNING << "View matrix does not seem to be legal." << std::endl;
+        }
+        U3D::Matrix4f inverse_view = view_matrix.inverse_as_view();
+        U3D_LOG << "Inverse view matrix = " << std::endl << inverse_view << std::endl;
 
         U3D::AutoHandle<SDL_Window *> window(SDL_CreateWindow("Universal 3D testbed", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, 480, 360, SDL_WINDOW_OPENGL | SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE), SDL_DestroyWindow);
         if(!window) {
