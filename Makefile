@@ -20,7 +20,7 @@ LDFLAGS := -Wl,--subsystem,windows -lm $(shell $(PKGCONFIG) --libs sdl2 SDL2_ima
 else
 CXX := g++
 PKGCONFIG := pkg-config
-CXXFLAGS := -Wall -Wextra -std=c++03 -O2 $(shell pkg-config --cflags sdl2 glew)
+CXXFLAGS := -Wall -Wextra -std=c++03 -g $(shell pkg-config --cflags sdl2 glew)
 LDFLAGS := -lm $(shell pkg-config --libs sdl2 SDL2_image glew)
 endif
 

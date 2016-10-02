@@ -45,7 +45,7 @@ bool BitStreamReader::open_block()
     if(data_buffer != NULL) delete[] data_buffer;
     if(metadata_buffer != NULL) delete[] metadata_buffer;
     data_buffer = new uint32_t[(data_size + 3) / 4 + 1];
-    metadata_buffer = new uint32_t[(metadata_size + 3) / 4];
+    metadata_buffer = new uint32_t[(metadata_size + 3) / 4 + 1];
     ifs.read(reinterpret_cast<char *>(data_buffer), (data_size + 3) / 4 * 4);
     ifs.read(reinterpret_cast<char *>(metadata_buffer), (metadata_size + 3) / 4 * 4);
     data_buffer[(data_size + 3) / 4] = 0;

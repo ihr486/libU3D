@@ -27,6 +27,7 @@ Viewer::Viewer()
 
     glEnable(GL_TEXTURE_2D);
     glEnable(GL_DEPTH_TEST);
+    glDepthFunc(GL_LESS);
 
     glClearColor(0, 0, 0, 0);
 }

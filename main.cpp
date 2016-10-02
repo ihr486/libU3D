@@ -22,7 +22,7 @@ namespace U3D
 
 class Node
 {
-protected:
+public:
     struct Parent {
         std::string name;
         Matrix4f transform;
@@ -50,7 +50,6 @@ public:
 
 class View : public Node
 {
-    std::string resource_name;
     uint32_t attributes;
     static const uint32_t UNIT_SCREEN_POSITION = 1, PROJECTION_ORTHO = 2, PROJECTION_TWO_POINT = 4, PROJECTION_ONE_POINT = 8;
     float near_clipping, far_clipping;
@@ -66,6 +65,7 @@ class View : public Node
     };
     std::vector<Backdrop> backdrops, overlays;
 public:
+    std::string resource_name;
     View(BitStreamReader& reader) : Node(reader)
     {
         reader >> resource_name >> attributes >> near_clipping >> far_clipping;
@@ -99,10 +99,10 @@ public:
 
 class Model : public Node
 {
-    std::string resource_name;
     uint32_t visibility;
     static const uint32_t FRONT_VISIBLE = 1, BACK_VISIBLE = 2;
 public:
+    std::string resource_name;
     Model(BitStreamReader& reader) : Node(reader)
     {
         reader >> resource_name >> visibility;
@@ -115,8 +115,8 @@ public:
 
 class Light : public Node
 {
-    std::string resource_name;
 public:
+    std::string resource_name;
     Light(BitStreamReader& reader) : Node(reader)
     {
         reader >> resource_name;
@@ -170,6 +170,7 @@ public:
 
 class ViewResource
 {
+public:
     struct Pass
     {
         std::string root_node_name;
@@ -310,6 +311,13 @@ static Texture *create_texture_modifier_chain(BitStreamReader& reader)
     return head;
 }
 
+class ViewAssembly
+{
+public:
+    ViewAssembly() {}
+    ~ViewAssembly() {}
+};
+
 class U3DContext
 {
     std::map<std::string, ModelResource *> models;
@@ -330,7 +338,7 @@ private:
         double units_scaling_factor;
         reader >> major_version >> minor_version >> profile_identifier >> declaration_size >> file_size >> character_encoding;
         units_scaling_factor = (profile_identifier & 0x8) ? reader.read<double>() : 1;
-        std::fprintf(stderr, "FileHeaderBlock created.\n");
+        U3D_LOG << "Scaling factor = " << units_scaling_factor << std::endl;
     }
 public:
     U3DContext(const std::string& filename) : reader(filename)
@@ -469,19 +477,53 @@ public:
         for(std::map<std::string, Material *>::iterator i = materials.begin(); i != materials.end(); i++) delete i->second;
         for(std::map<std::string, Node *>::iterator i = nodes.begin(); i != nodes.end(); i++) delete i->second;
     }
+    Node *get_node(const std::string& name) {
+        return nodes[name];
+    }
+    View *get_view(const std::string& name) {
+        return dynamic_cast<View *>(nodes[name]);
+    }
+    View *get_first_view() {
+        for(std::map<std::string, Node *>::iterator i = nodes.begin(); i != nodes.end(); i++) {
+            View *view = dynamic_cast<View *>(i->second);
+            if(view != NULL) return view;
+        }
+        return NULL;
+    }
+    bool get_world_transform(Matrix4f *mat, const Node *node, const Node *root) {
+        for(std::vector<Node::Parent>::const_iterator i = node->parents.begin(); i != node->parents.end(); i++) {
+            Node *parent = nodes[i->name];
+            if(parent == root) {
+                *mat *= i->transform;
+                return true;
+            } else {
+                if(get_world_transform(mat, parent, root)) {
+                    *mat *= i->transform;
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+    ViewAssembly *create_assembly(const View *view) {
+        ViewResource *rsc = views[view->resource_name];
+        Node *root_node = nodes[rsc->passes[0].root_node_name];
+        for(std::map<std::string, Node *>::iterator i = nodes.begin(); i != nodes.end(); i++) {
+            Light *light = dynamic_cast<Light *>(i->second);
+            if(light != NULL) {
+                continue;
+            }
+            Model *model = dynamic_cast<Model *>(i->second);
+            if(model != NULL) {
+                continue;
+            }
+        }
+        ViewAssembly *assembly = new ViewAssembly();
+        return assembly;
+    }
 };
 
 }
-
-void __attribute__((noreturn)) abort_with_msg(const char *msg)
-{
-    fprintf(stderr, "%s\n", msg);
-    exit(0);
-}
-
-#define STR2(x) #x
-#define STR(x) STR2(x)
-#define EXIT(msg) abort_with_msg(STR(__FILE__) ":" STR(__LINE__) ";" msg "\n")
 
 #ifdef __WIN32__
 #include <windows.h>
@@ -490,26 +532,41 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR lpC, int nC)
 int main(int argc, char *argv[])
 #endif
 {
-    printf("Universal 3D loader v0.1a\n");
+    std::cout << "Universal 3D loader v0.1a" << std::endl;
 
 #ifndef __WIN32__
     if(argc < 2) {
-        fprintf(stderr, "Please specify an input file.\n");
+        std::cerr << "Please specify an input file." << std::endl;
+        return 1;
+    }
+
+    if(SDL_Init(SDL_INIT_VIDEO) < 0) {
+        std::cerr << "Failed to initialize SDL2." << std::endl;
         return 1;
     }
 
     U3D::U3DContext model(argv[1]);
 
-    fprintf(stderr, "%s successfully parsed.\n", argv[1]);
+    std::cerr << argv[1] << " successfully parsed." << std::endl;
 #else
     U3D::U3DContext model(lpC);
 
-    fprintf(stderr, "%s successfully parsed.\n", lpC);
+    std::cerr << (char *)lpC << " successfully parsed." << std::endl;
 #endif
 
     try {
-        if(SDL_Init(SDL_INIT_VIDEO) < 0) {
-            throw U3D_ERROR << "Failed to initialize SDL2.";
+        U3D::View *defaultview = model.get_view("DefaultView");
+        if(defaultview != NULL) {
+            U3D_LOG << "DefaultView found." << std::endl;
+        } else {
+            defaultview = model.get_first_view();
+            if(defaultview == NULL) {
+                throw U3D_ERROR << "No View node was found.";
+            }
+        }
+        U3D::Matrix4f view_matrix;
+        if(model.get_world_transform(&view_matrix, defaultview, model.get_node(""))) {
+            U3D_LOG << "View matrix = " << std::endl << view_matrix << std::endl;
         }
 
         U3D::AutoHandle<SDL_Window *> window(SDL_CreateWindow("Universal 3D testbed", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, 480, 360, SDL_WINDOW_OPENGL | SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE), SDL_DestroyWindow);
