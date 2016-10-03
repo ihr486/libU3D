@@ -67,13 +67,13 @@ ShaderGroup *create_shader_group()
     "attribute vec4 vertex_position, vertex_normal;\n"
     "attribute vec4 vertex_diffuse, vertex_specular;\n"
     "varying vec4 fragment_color;\n"
-    "uniform mat4 PVM_matrix;\n"
+    "uniform mat4 PVM_matrix, normal_matrix;\n"
     "uniform vec3 light_dir;\n"
     "uniform float light_intensity;\n"
     "uniform vec3 light_color;\n"
     "void main() {\n"
     "    gl_Position = PVM_matrix * vertex_position;\n"
-    "    view_normal = PVM_matrix * vec4(vertex_normal.xyz, 0.0);\n"
+    "    view_normal = normal_matrix * vertex_normal;\n"
     "    fragment_color = vertex_diffuse;\n"
     "}\n";
     std::ostringstream fragment_source;

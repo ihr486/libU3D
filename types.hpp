@@ -195,6 +195,24 @@ struct Matrix4f
     }
     Matrix4f create_normal_matrix() const {
         Matrix4f ret;
+        float invdet = 1.0f / (m[0][0] * m[1][1] * m[2][2] + m[0][1] * m[1][2] * m[2][0] + m[0][2] * m[1][0] * m[2][1] \
+                  - m[0][2] * m[1][1] * m[2][0] - m[0][1] * m[1][0] * m[2][2] - m[0][0] * m[1][2] * m[2][1]);
+        ret.m[0][0] = invdet * (m[1][1] * m[2][2] - m[2][1] * m[1][2]);
+        ret.m[1][0] = invdet * (m[0][2] * m[2][1] - m[0][1] * m[2][2]);
+        ret.m[2][0] = invdet * (m[0][1] * m[1][2] - m[0][2] * m[1][1]);
+        ret.m[3][0] = 0;
+        ret.m[0][1] = invdet * (m[2][0] * m[1][2] - m[1][0] * m[2][2]);
+        ret.m[1][1] = invdet * (m[0][0] * m[2][2] - m[2][0] * m[0][2]);
+        ret.m[2][1] = invdet * (m[1][0] * m[0][2] - m[0][0] * m[1][2]);
+        ret.m[3][1] = 0;
+        ret.m[0][2] = invdet * (m[1][0] * m[2][1] - m[2][0] * m[1][1]);
+        ret.m[1][2] = invdet * (m[2][0] * m[0][1] - m[0][0] * m[2][1]);
+        ret.m[2][2] = invdet * (m[0][0] * m[1][1] - m[1][0] * m[0][1]);
+        ret.m[3][2] = 0;
+        ret.m[0][3] = 0;
+        ret.m[1][3] = 0;
+        ret.m[2][3] = 0;
+        ret.m[3][3] = 1;
         return ret;
     }
     Vector3f operator*(const Vector3f& v) const {
