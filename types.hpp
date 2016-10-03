@@ -193,6 +193,10 @@ struct Matrix4f
         ret.m[3][3] = 1;
         return ret;
     }
+    Matrix4f create_normal_matrix() const {
+        Matrix4f ret;
+        return ret;
+    }
     Vector3f operator*(const Vector3f& v) const {
         Vector3f ret;
         ret.x = m[0][0] * v.x + m[1][0] * v.y + m[2][0] * v.z + m[3][0];

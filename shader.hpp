@@ -39,6 +39,10 @@ class LitTextureShader
     static const uint8_t REPEAT_FIRST = 1, REPEAT_SECOND = 2;
     TextureInfo texinfos[8];
 public:
+    struct ShaderGroup
+    {
+        GLuint point_program, spot_program, directional_program;
+    };
     LitTextureShader(BitStreamReader& reader)
     {
         reader >> attributes >> alpha_reference >> alpha_function >> blend_function;
@@ -62,6 +66,7 @@ public:
         shader_channels = 0;
         alpha_texture_channels = 0;
     }
+    ShaderGroup *create_shader_group();
 };
 
 }
