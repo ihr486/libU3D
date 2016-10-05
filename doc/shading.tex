@@ -1,0 +1,21 @@
+\documentclass[a4paper]{article}
+\title{Implementation of Gouraud shading in GLSL}
+\author{Hiroka IHARA (The Univ. of Tokyo)}
+\date{2016/10/05}
+\usepackage{bm}
+\begin{document}
+\maketitle
+\section{Basics for per-vertex shading}
+\[
+I_{diffuse} = k_{diffuse} \cdot I_{light} \cdot max \left( \bm{N} \cdot \bm{L}, 0 \right)
+\]
+where $\bm{N}$ is the normalized vertex normal in viewspace, and $\bm{L}$ is the normalized viewspace vector pointing to the light.
+\[
+I_{ambient} = k_{ambient} \cdot I_{light}
+\]
+\[
+I_{specular} = k_{specular} \cdot I_{light} \cdot max \left( \bm{R} \cdot \bm{V}, 0 \right)^{k_{reflectivity}}
+\]
+where $\bm{R}$ is calculated as $2\bm{N}\left(\bm{N}\cdot\bm{L}\right)-\bm{L}$ or simply $reflect\left(\bm{N},-\bm{L}\right)$,
+and $\bm{V}$ is the normalized viewspace vector pointing to the view, which is equivalent to the negated projection vector.
+\end{document}
