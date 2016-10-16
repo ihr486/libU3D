@@ -1,23 +1,33 @@
 #include "shader.hpp"
+#include "util.hpp"
+
+#include <stdio.h>
+#include <stdlib.h>
 
 namespace
 {
 
-GLuint compile_shader(GLenum type, const std::string& source)
+GLuint compile_shader(GLenum type, FILE *fp)
 {
     GLuint shader = glCreateShader(type);
 
-    const char *source_list[1] = {source.c_str()};
+    char buf[32768];
+    size_t src_length = fread(buf, 1, sizeof(buf) - 1, fp);
+    if(src_length >= sizeof(buf) - 1) {
+        U3D_WARNING << "Shader source might be truncated." << std::endl;
+    }
+    buf[src_length] = 0;
+    const char *source_list[1] = {buf};
     glShaderSource(shader, 1, source_list, NULL);
     glCompileShader(shader);
 
-    GLint result, length;
+    GLint result, log_length;
     glGetShaderiv(shader, GL_COMPILE_STATUS, &result);
     if(result == GL_FALSE) {
-        glGetShaderiv(shader, GL_INFO_LOG_LENGTH, &length);
-        if(length > 0) {
-            char *log_msg = new char[length];
-            glGetShaderInfoLog(shader, length, NULL, log_msg);
+        glGetShaderiv(shader, GL_INFO_LOG_LENGTH, &log_length);
+        if(log_length > 0) {
+            char *log_msg = new char[log_length];
+            glGetShaderInfoLog(shader, log_length, NULL, log_msg);
             delete[] log_msg;
         }
     }
@@ -51,84 +61,74 @@ GLuint link_program(GLuint vertex_shader, GLuint fragment_shader)
 namespace U3D
 {
 
-ShaderGroup *create_shader_group()
+LitTextureShader::ShaderGroup *LitTextureShader::create_shader_group()
 {
-    std::ostringstream fragment_source;
-    fragment_source <<
-        "#version 120\n"
-        "varying vec4 fragment_color;\n"
-    ;
+    FILE *fs = fopen("common.frag", "w");
+
+    fprintf(fs, "#version 120\nvarying vec4 fragment_color;\n");
     for(int i = 0; i < 8; i++) {
         if(shader_channels & (1 << i)) {
-            fragment_source <<
-                "uniform sampler2D texture" << i << "\n"
-            ;
+            fprintf(fs, "uniform sampler2D texture%d;\n", i);
+            fprintf(fs, "varying vec2 texcoord%d;\n", i);
         }
     }
-    fragment_source <<
-        "void main() {\n"
-    ;
+    fprintf(fs, "void main() {\n");
     for(int i = 0; i < 8; i++) {
         if(i == 0) {
-            fragment_source << "\tvec4 layer0_in = fragment_color;\n";
+            fprintf(fs, "\tvec4 layer0_in = fragment_color;\n");
         } else {
-            fragment_source << "\tvec4 layer" << i << "_in = layer" << i - 1 << "_out;\n";
+            fprintf(fs, "\tvec4 layer%d_in = layer%d_out;\n", i, i - 1);
         }
         if(shader_channels & (1 << i)) {
-            fragment_source << "\tvec4 layer" << i << "_tex = sampler2D(texture" << i << ");\n";
+            fprintf(fs, "\tvec4 layer%d_tex = texture(texture%d, texcoord%d);\n", i, i, i);
         }
         if(i == 7) {
-            fragment_source << "\tgl_FragColor = ";
+            fprintf(fs, "\tgl_FragColor = ");
         } else {
-            fragment_source << "\tvec4 layer" << i << "_out = ";
+            fprintf(fs, "\tvec4 layer%d_out = ", i);
         }
         if(shader_channels & (1 << i)) {
             switch(texinfos[i].mode) {
             case MULTIPLY:
-                fragment_source <<
-                    "layer" << i << "_in * layer" << i << "_tex;\n"
-                ;
+                fprintf(fs, "layer%d_in * layer%d_tex;\n", i, i);
                 break;
             case ADD:
-                fragment_source <<
-                    "vec4(layer" << i << "_in.rgb + layer" << i << "_tex.rgb, layer" << i << "_in.a * layer" << i << "_tex.a);\n"
-                ;
+                fprintf(fs, "vec4(layer%d_in.rgb + layer%d_tex.rgb, layer%d_in.a * layer%d_tex.a);\n", i, i, i, i);
                 break;
             case REPLACE:
-                fragment_source <<
-                    "layer" << i << "_tex;\n"
-                ;
+                fprintf(fs, "layer%d_tex;\n", i);
                 break;
             case BLEND:
-                fragment_source <<
-                    "vec4(mix(layer" << i << "_in.rgb, layer" << i << "_tex.rgb, layer" << i << "_tex.a), layer" << i << "_in.a * layer" << i << "_tex.a);\n"
-                ;
+                fprintf(fs, "vec4(mix(layer%d_in.rgb, layer%d_tex.rgb, layer%d_tex.a), layer%d_in.a * layer%d_tex.a);\n", i, i, i, i, i);
                 break;
             }
         } else {
-            fragment_source << "layer" << i << "_in;\n"; 
+            fprintf(fs, "layer%d_in;\n", i);
         }
     }
-    fragment_source << "}\n";
-    GLuint common_fragment_shader = compile_shader(GL_FRAGMENT_SHADER, fragment_source.str());
+    fprintf(fs, "}\n");
+    //GLuint common_fragment_shader = compile_shader(GL_FRAGMENT_SHADER, fs);
+    fclose(fs);
 
-    ShaderGroup *group = new ShaderGroup();
-    std::ostringstream vertex_source;
-    vertex_source <<
-    "#version 120\n"
-    "attribute vec4 vertex_position, vertex_normal;\n"
-    "attribute vec4 vertex_diffuse, vertex_specular;\n"
-    "varying vec4 fragment_color;\n"
-    "uniform mat4 PVM_matrix, normal_matrix;\n"
-    "uniform vec3 light_dir;\n"
-    "uniform float light_intensity;\n"
-    "uniform vec3 light_color;\n";
-    vertex_source << 
-    "void main() {\n"
-    "    gl_Position = PVM_matrix * vertex_position;\n"
-    "    view_normal = normal_matrix * vertex_normal;\n"
-    "    fragment_color = vertex_diffuse;\n"
-    "}\n";
+    FILE *vsd = fopen("directional.vert", "w");
+    fprintf(vsd, "#version 120\n"
+                 "attribute vec4 vertex_diffuse, vertex_specular;\n"
+                 "attribute vec4 vertex_position, vertex_normal;\n"
+                 "varying vec4 fragment_color;\n"
+                 "uniform mat4 PVM_matrix, normal_matrix;\n"
+                 "uniform vec4 material_diffuse, material_specular;\n"
+                 "uniform vec4 material_ambient, material_emissive;\n"
+                 "uniform float material_reflectivity, material_opacity;\n");
+    fprintf(vsd, "uniform vec4 light_color;\n"
+                 "uniform mat4 light_transform;\n");
+    fprintf(vsd, "void main() {\n");
+    fprintf(vsd, "\tgl_Position = PVM_matrix * vertex_position;\n");
+    fprintf(vsd, "}\n");
+    fclose(vsd);
+
+    //ShaderGroup *group = new ShaderGroup();
+
+    return NULL;
 }
 
 }
