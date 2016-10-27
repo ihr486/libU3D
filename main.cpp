@@ -166,6 +166,17 @@ public:
     {
         attributes = 0x00000001, type = 0x00, color = Color3f(0.75f, 0.75f, 0.75f);
     }
+    void deploy(GLuint program)
+    {
+        switch(type) {
+        case LIGHT_DIRECTIONAL:
+            break;
+        case LIGHT_POINT:
+            break;
+        case LIGHT_SPOT:
+            break;
+        }
+    }
 };
 
 class ViewResource
