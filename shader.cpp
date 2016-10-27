@@ -115,14 +115,32 @@ LitTextureShader::ShaderGroup *LitTextureShader::create_shader_group()
                  "attribute vec4 vertex_diffuse, vertex_specular;\n"
                  "attribute vec4 vertex_position, vertex_normal;\n"
                  "varying vec4 fragment_color;\n"
-                 "uniform mat4 PVM_matrix, normal_matrix;\n"
+                 "uniform mat4 PVM_matrix, modelview_matrix, normal_matrix;\n"
                  "uniform vec4 material_diffuse, material_specular;\n"
                  "uniform vec4 material_ambient, material_emissive;\n"
                  "uniform float material_reflectivity, material_opacity;\n");
     fprintf(vsd, "uniform vec4 light_color;\n"
                  "uniform mat4 light_transform;\n");
-    fprintf(vsd, "void main() {\n");
-    fprintf(vsd, "\tgl_Position = PVM_matrix * vertex_position;\n");
+    for(int i = 0; i < 8; i++) {
+        if(shader_channels & (1 << i)) {
+            fprintf(vsd, "\tvarying vec2 texcoord%d;\n", i);
+        }
+    }
+    fprintf(vsd, "void main() {\n"
+                 "\tviewspace_normal = normalize(normal_matrix * vertex_normal);\n"
+                 "\tviewspace_position = modelview_matrix * vertex_position;\n"
+                 "\tviewspace_camera = normalize(-viewspace_position);\n"
+                 "\tdiffuse = light_color * material_diffuse * max(0.0, dot(viewspace_normal, viewspace_incidence));\n"
+                 "\tspecular = light_color * material_specular * pow(max(0.0, dot(viewspace_camera, reflect(viewspace_incidence, viewspace_normal))), material_reflectivity);\n"
+                 "\tambient = light_color * material_ambient;\n"
+                 "\temissive = material_emissive;\n"
+                 "\tfragment_color = light_intensity * (diffuse + specular + ambient) + emissive;\n"
+                 "\tgl_Position = PVM_matrix * vertex_position;\n");
+    for(int i = 0; i < 8; i++) {
+        if(shader_channels & (1 << i)) {
+            fprintf(vsd, "\ttexcoord%d = vertex_texcoord%d;\n", i, i);
+        }
+    }
     fprintf(vsd, "}\n");
     fclose(vsd);
 
