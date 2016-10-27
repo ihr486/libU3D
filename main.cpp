@@ -509,13 +509,18 @@ public:
         ViewResource *rsc = views[view->resource_name];
         Node *root_node = nodes[rsc->passes[0].root_node_name];
         for(std::map<std::string, Node *>::iterator i = nodes.begin(); i != nodes.end(); i++) {
-            Light *light = dynamic_cast<Light *>(i->second);
-            if(light != NULL) {
-                continue;
-            }
-            Model *model = dynamic_cast<Model *>(i->second);
-            if(model != NULL) {
-                continue;
+            Matrix4f world_transform;
+            if(get_world_transform(&world_transform, i->second, root_node)) {
+                Light *light = dynamic_cast<Light *>(i->second);
+                if(light != NULL) {
+                    U3D_LOG << "Light node " << light->resource_name << " found." << std::endl;
+                    continue;
+                }
+                Model *model = dynamic_cast<Model *>(i->second);
+                if(model != NULL) {
+                    U3D_LOG << "Model node " << model->resource_name << " found." << std::endl;
+                    continue;
+                }
             }
         }
         ViewAssembly *assembly = new ViewAssembly();
@@ -573,6 +578,9 @@ int main(int argc, char *argv[])
         }
         U3D::Matrix4f inverse_view = view_matrix.inverse_as_view();
         U3D_LOG << "Inverse view matrix = " << std::endl << inverse_view << std::endl;
+
+        U3D::ViewAssembly *assembly = model.create_assembly(defaultview);
+        delete assembly;
 
         U3D::AutoHandle<SDL_Window *> window(SDL_CreateWindow("Universal 3D testbed", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, 480, 360, SDL_WINDOW_OPENGL | SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE), SDL_DestroyWindow);
         if(!window) {
