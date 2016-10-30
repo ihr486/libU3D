@@ -329,7 +329,7 @@ public:
     ~ViewAssembly() {}
 };
 
-class U3DContext
+class FileStructure
 {
     std::map<std::string, ModelResource *> models;
     std::map<std::string, LightResource *> lights;
@@ -352,7 +352,7 @@ private:
         U3D_LOG << "Scaling factor = " << units_scaling_factor << std::endl;
     }
 public:
-    U3DContext(const std::string& filename) : reader(filename)
+    FileStructure(const std::string& filename) : reader(filename)
     {
         models[""] = new CLOD_Mesh();
         lights[""] = new LightResource();
@@ -479,7 +479,7 @@ public:
             }
         }
     }
-    ~U3DContext() {
+    ~FileStructure() {
         for(std::map<std::string, ModelResource *>::iterator i = models.begin(); i != models.end(); i++) delete i->second;
         for(std::map<std::string, LightResource *>::iterator i = lights.begin(); i != lights.end(); i++) delete i->second;
         for(std::map<std::string, ViewResource *>::iterator i = views.begin(); i != views.end(); i++) delete i->second;
@@ -561,11 +561,11 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-    U3D::U3DContext model(argv[1]);
+    U3D::FileStructure model(argv[1]);
 
     std::cerr << argv[1] << " successfully parsed." << std::endl;
 #else
-    U3D::U3DContext model(lpC);
+    U3D::FileStructure model(lpC);
 
     std::cerr << (char *)lpC << " successfully parsed." << std::endl;
 #endif

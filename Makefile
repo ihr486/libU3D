@@ -1,9 +1,9 @@
 #Makefile for libU3D demo
 
+OBJDIR := $(TMPDIR)/libU3D
+
 CXXSRCS := $(wildcard *.cpp)
-HDRS := $(wildcard *.hpp)
-CXXOBJS := $(CXXSRCS:%.cpp=%.o)
-OBJS := $(CXXOBJS)
+OBJS := $(CXXSRCS:%.cpp=$(OBJDIR)/%.o)
 
 EMULATOR := $(shell uname -o)
 PROCESSOR := $(shell uname -m)
@@ -15,12 +15,12 @@ else
 CXX := x86_64-w64-mingw32-g++
 PKGCONFIG := x86_64-w64-mingw32-pkg-config
 endif
-CXXFLAGS := -Wall -Wextra -std=c++03 -O2 $(shell $(PKGCONFIG) --cflags sdl2) -I/usr/x86_64-w64-mingw32/sys-root/mingw/include/GL
+CXXFLAGS := -MMD -MP -Wall -Wextra -std=c++03 -O2 $(shell $(PKGCONFIG) --cflags sdl2) -I/usr/x86_64-w64-mingw32/sys-root/mingw/include/GL
 LDFLAGS := -Wl,--subsystem,windows -lm $(shell $(PKGCONFIG) --libs sdl2 SDL2_image) -lglew32 -lopengl32
 else
 CXX := g++
 PKGCONFIG := pkg-config
-CXXFLAGS := -Wall -Wextra -std=c++03 -g $(shell pkg-config --cflags sdl2 glew)
+CXXFLAGS := -MMD -MP -Wall -Wextra -std=c++03 -g $(shell pkg-config --cflags sdl2 glew)
 LDFLAGS := -lm $(shell pkg-config --libs sdl2 SDL2_image glew)
 endif
 
@@ -34,13 +34,18 @@ check:
 	$(CXX) $(CXXFLAGS) -fsyntax-only $(CXXSRCS)
 
 clean:
-	-@rm -vf $(OBJS) $(BIN)
+	-@rm -rf $(OBJDIR) $(BIN)
 
 install: $(BIN)
 	install --mode=755 --target-directory=/usr/local/bin $<
 
-%.o: %.cpp $(HDRS)
+$(OBJDIR)/%.o: %.cpp | $(OBJDIR)
 	$(CXX) $(CXXFLAGS) -c -o $@ $<
 
 $(BIN): $(OBJS)
 	$(CXX) $(CXXFLAGS) -o $@ $^ $(LDFLAGS)
+
+$(OBJDIR):
+	-@mkdir -p $@
+
+-include $(shell find $(OBJDIR) -name '*.d')
