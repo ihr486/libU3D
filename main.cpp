@@ -144,6 +144,15 @@ public:
         reflectivity = 0;
         opacity = 1.0f;
     }
+    void populate_program(GLuint program)
+    {
+        glUniform3f(glGetUniformLocation(program, "material_diffuse"), diffuse.r, diffuse.g, diffuse.b);
+        glUniform3f(glGetUniformLocation(program, "material_specular"), specular.r, specular.g, specular.b);
+        glUniform3f(glGetUniformLocation(program, "material_ambient"), ambient.r, ambient.g, ambient.b);
+        glUniform3f(glGetUniformLocation(program, "material_emissive"), emissive.r, emissive.g, emissive.b);
+        glUniform1f(glGetUniformLocation(program, "material_reflectivity"), reflectivity);
+        glUniform1f(glGetUniformLocation(program, "material_opacity"), opacity);
+    }
 };
 
 class LightResource
@@ -166,14 +175,23 @@ public:
     {
         attributes = 0x00000001, type = 0x00, color = Color3f(0.75f, 0.75f, 0.75f);
     }
-    void deploy(GLuint program)
+    void populate_program(GLuint program)
     {
+        glUniform3f(glGetUniformLocation(program, "light_color"), color.r, color.g, color.b);
         switch(type) {
         case LIGHT_DIRECTIONAL:
+            glUniform1f(glGetUniformLocation(program, "light_intensity"), intensity);
             break;
         case LIGHT_POINT:
+            glUniform1f(glGetUniformLocation(program, "light_att0"), att_constant);
+            glUniform1f(glGetUniformLocation(program, "light_att1"), att_linear);
+            glUniform1f(glGetUniformLocation(program, "light_att2"), att_quadratic);
             break;
         case LIGHT_SPOT:
+            glUniform1f(glGetUniformLocation(program, "light_att0"), att_constant);
+            glUniform1f(glGetUniformLocation(program, "light_att1"), att_linear);
+            glUniform1f(glGetUniformLocation(program, "light_att2"), att_quadratic);
+            glUniform1f(glGetUniformLocation(program, "light_spot_angle"), spot_angle);
             break;
         }
     }
