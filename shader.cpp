@@ -120,6 +120,28 @@ LitTextureShader::ShaderGroup *LitTextureShader::create_shader_group()
         "uniform vec4 material_ambient, material_emissive;\n"
         "uniform float material_reflectivity, material_opacity;\n";
 
+    FILE *vsa = fopen("ambient.vert", "w");
+    fprintf(vsa, "%s", vs_header);
+    fprintf(vsa, "uniform vec4 light_color;\n");
+    for(int i = 0; i < 8; i++) {
+        if(shader_channels & (1 << i)) {
+            fprintf(vsd, "attribute vec2 vertex_texcoord%d;\n", i);
+            fprintf(vsd, "varying vec2 texcoord%d;\n", i);
+        }
+    }
+    fprintf(vsa, "void main() {\n"
+                 "\tvec4 ambient = light_color * material_ambient;\n"
+                 "\tvec4 emissive = material_emissive;\n"
+                 "\tfragment_color = ambient + emissive;\n"
+                 "\tgl_Position = PVM_matrix * vertex_position;\n");
+    for(int i = 0; i < 8; i++) {
+        if(shader_channels & (1 << i)) {
+            fprintf(vsa, "\ttexcoord%d = vertex_texcoord%d;\n", i, i);
+        }
+    }
+    fprintf(vsa, "}\n");
+    fclose(vsa);
+
     FILE *vsd = fopen("directional.vert", "w");
     fprintf(vsd, "%s", vs_header);
     fprintf(vsd, "uniform vec4 light_color;\n"
@@ -213,7 +235,7 @@ LitTextureShader::ShaderGroup *LitTextureShader::create_shader_group()
             fprintf(vss, "\ttexcoord%d = vertex_texcoord%d;\n", i, i);
         }
     }
-    fprintf(vss, "\tfragment_color = light_intensity * (spot_attenuation * (diffuse + specular) / attenuation + ambient) + emissive;\n"
+    fprintf(vss, "\tfragment_color = light_intensity * (spot_attenuation * (diffuse + specular) / attenuation) + ambient + emissive;\n"
                  "\tgl_Position = PVM_matrix * vertex_position;\n"
                  "}\n");
 

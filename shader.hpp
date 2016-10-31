@@ -10,6 +10,25 @@
 namespace U3D
 {
 
+struct ShaderGroup
+{
+    GLuint point_program, spot_program, directional_program, ambient_program;
+    struct MaterialParams
+    {
+        Color3f ambient, diffuse, specular, emissive;
+        float reflectivity, opacity;
+        void load(GLuint program)
+        {
+            glUniform3f(glGetUniformLocation(program, "material_diffuse"), diffuse.r, diffuse.g, diffuse.b);
+            glUniform3f(glGetUniformLocation(program, "material_specular"), specular.r, specular.g, specular.b);
+            glUniform3f(glGetUniformLocation(program, "material_ambient"), ambient.r, ambient.g, ambient.b);
+            glUniform3f(glGetUniformLocation(program, "material_emissive"), emissive.r, emissive.g, emissive.b);
+            glUniform1f(glGetUniformLocation(program, "material_reflectivity"), reflectivity);
+            glUniform1f(glGetUniformLocation(program, "material_opacity"), opacity);
+        }
+    };
+};
+
 class LitTextureShader
 {
     uint32_t attributes;
@@ -39,10 +58,6 @@ class LitTextureShader
     static const uint8_t REPEAT_FIRST = 1, REPEAT_SECOND = 2;
     TextureInfo texinfos[8];
 public:
-    struct ShaderGroup
-    {
-        GLuint point_program, spot_program, directional_program;
-    };
     LitTextureShader(BitStreamReader& reader)
     {
         reader >> attributes >> alpha_reference >> alpha_function >> blend_function;
