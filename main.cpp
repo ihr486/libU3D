@@ -311,13 +311,6 @@ static Texture *create_texture_modifier_chain(BitStreamReader& reader)
     return head;
 }
 
-class ViewAssembly
-{
-public:
-    ViewAssembly() {}
-    ~ViewAssembly() {}
-};
-
 class FileStructure
 {
     std::map<std::string, ModelResource *> models;
@@ -505,7 +498,7 @@ public:
         }
         return false;
     }
-    ViewAssembly *create_assembly(const View *view) {
+    /*ViewAssembly *create_assembly(const View *view) {
         ViewResource *rsc = views[view->resource_name];
         Node *root_node = nodes[rsc->passes[0].root_node_name];
         for(std::map<std::string, Node *>::iterator i = nodes.begin(); i != nodes.end(); i++) {
@@ -525,6 +518,12 @@ public:
         }
         ViewAssembly *assembly = new ViewAssembly();
         return assembly;
+    }*/
+    Dictionary *create_dictionary()
+    {
+        for(std::map<std::string, LitTextureShader *>::iterator i = shaders.begin(); i != shaders.end(); i++) {
+
+        }
     }
 };
 
@@ -578,9 +577,6 @@ int main(int argc, char *argv[])
         }
         U3D::Matrix4f inverse_view = view_matrix.inverse_as_view();
         U3D_LOG << "Inverse view matrix = " << std::endl << inverse_view << std::endl;
-
-        U3D::ViewAssembly *assembly = model.create_assembly(defaultview);
-        delete assembly;
 
         U3D::AutoHandle<SDL_Window *> window(SDL_CreateWindow("Universal 3D testbed", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, 480, 360, SDL_WINDOW_OPENGL | SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE), SDL_DestroyWindow);
         if(!window) {

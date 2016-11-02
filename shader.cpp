@@ -61,11 +61,11 @@ GLuint link_program(GLuint vertex_shader, GLuint fragment_shader)
 namespace U3D
 {
 
-LitTextureShader::ShaderGroup *LitTextureShader::create_shader_group()
+ShaderGroup *LitTextureShader::create_shader_group()
 {
     FILE *fs = fopen("common.frag", "w");
 
-    fprintf(fs, "#version 120\nvarying vec4 fragment_color;\n");
+    fprintf(fs, "#version 110\nvarying vec4 fragment_color;\n");
     for(int i = 0; i < 8; i++) {
         if(shader_channels & (1 << i)) {
             fprintf(fs, "uniform sampler2D texture%d;\n", i);
@@ -111,7 +111,7 @@ LitTextureShader::ShaderGroup *LitTextureShader::create_shader_group()
     fclose(fs);
 
     const char vs_header[] =
-        "#version 120\n"
+        "#version 110\n"
         "attribute vec4 vertex_diffuse, vertex_specular;\n"
         "attribute vec4 vertex_position, vertex_normal;\n"
         "varying vec4 fragment_color;\n"
@@ -125,8 +125,8 @@ LitTextureShader::ShaderGroup *LitTextureShader::create_shader_group()
     fprintf(vsa, "uniform vec4 light_color;\n");
     for(int i = 0; i < 8; i++) {
         if(shader_channels & (1 << i)) {
-            fprintf(vsd, "attribute vec2 vertex_texcoord%d;\n", i);
-            fprintf(vsd, "varying vec2 texcoord%d;\n", i);
+            fprintf(vsa, "attribute vec2 vertex_texcoord%d;\n", i);
+            fprintf(vsa, "varying vec2 texcoord%d;\n", i);
         }
     }
     fprintf(vsa, "void main() {\n"

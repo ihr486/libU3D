@@ -204,26 +204,22 @@ struct Matrix4f
         ret.m[2][2] = invdet * (m[0][0] * m[1][1] - m[1][0] * m[0][1]);
         return ret;
     }
-    Matrix4f create_perspective_projection(float fovx, float aspect, float near, float far)
+    void create_perspective_projection(Matrix4f& mat, float fovx, float aspect, float near, float far)
     {
         float f = 1.0f / tanf(fovx);
-        Matrix4f ret;
-        ret.m[0][0] = f;
-        ret.m[1][1] = f / aspect;
-        ret.m[2][2] = (near + far) / (near - far);
-        ret.m[3][2] = 2.0f * near * far / (near - far);
-        ret.m[2][3] = -1.0f;
-        ret.m[3][3] = 0.0f;
-        return ret;
+        mat.m[0][0] = f;
+        mat.m[1][1] = f / aspect;
+        mat.m[2][2] = (near + far) / (near - far);
+        mat.m[3][2] = 2.0f * near * far / (near - far);
+        mat.m[2][3] = -1.0f;
+        mat.m[3][3] = 0.0f;
     }
-    Matrix4f create_orthogonal_projection(float wovx, float aspect, float near, float far)
+    void create_orthogonal_projection(Matrix4f& mat, float height, float aspect, float near, float far)
     {
-        Matrix4f ret;
-        ret.m[0][0] = 2.0f / wovx;
-        ret.m[1][1] = 2.0f / (wovx * aspect);
-        ret.m[2][2] = 2.0f / (near - far);
-        ret.m[3][2] = (near + far) / (near - far);
-        return ret;
+        mat.m[0][0] = 2.0f / (height / aspect);
+        mat.m[1][1] = 2.0f / height;
+        mat.m[2][2] = 2.0f / (near - far);
+        mat.m[3][2] = (near + far) / (near - far);
     }
     Vector3f operator*(const Vector3f& v) const {
         Vector3f ret;

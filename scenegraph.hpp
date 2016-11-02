@@ -7,13 +7,31 @@ class SceneGraph
 {
     struct ViewParams
     {
-        Matrix4f projection_matrix, view_matrix;
+        Matrix4f view_matrix;
+        enum {
+            PERSPECTIVE = 0, ORTHOGONAL
+        } type;
+        float fovy, height, near, far;
         void load(GLuint program, const Matrix4f& model_matrix)
         {
+            Matrix4f projection_matrix;
+            if(type == PERSPECTIVE) {
+                Matrix4f::create_perspective_projection(projection_matrix, fovx, aspect, near, far);
+            } else if(ORTHOGONAL) {
+                Matrix4f::create_orthogonal_projection(projection_matrix, height, aspect, near, far);
+            }
             Matrix4f modelview_matrix = view_matrix * model_matrix;
             Matrix4f PVM_matrix = projection_matrix * modelview_matrix;
-            glUniformMatrix4fv(glGetUniformLocation(program, "PVM_matrix"), 1, GL_FALSE, (GLfloat *)&PVM_matrix);
-            glUniformMatrix4fv(glGetUniformLocation(program, "modelview_matrix"), 1, GL_FALSE, (GLfloat *)&modelview_matrix);
+            glUniformMatrix4fv(glGetUniformLocation(program, "PVM_matrix"), (GLfloat *)&PVM_matrix);
+            glUniformMatrix4fv(glGetUniformLocation(program, "modelview_matrix"), (GLfloat *)&modelview_matrix);
+        }
+        void setup(const View& view, const Matrix4f& transform)
+        {
+            this->view_matrix = transform.inverse_as_view();
+            fovy = view.projection;
+            height = view.ortho_height;
+            near = view.near_clipping;
+            far = view.far_clipping;
         }
     };
     struct LightParams
@@ -25,6 +43,17 @@ class SceneGraph
         Color3f color;
         float att_constant, att_linear, att_quadratic;
         float spot_angle, intensity;
+        void setup(const Light& light, const Matrix4f& transform)
+        {
+            position = Vector4f(0, 0, 0, 1) * transform;
+            direction = Vector4f(0, 0, -1, 0) * transform;
+            color = light.color;
+            att_constant = light.att_constant;
+            att_linear = light.att_linear;
+            att_quadratic = light.att_quadratic;
+            spot_angle = light.spot_angle;
+            intensity = light.intensity;
+        }
         void load(GLuint program)
         {
             glUniform3f(glGetUniformLocation(program, "light_color"), color.r, color.g, color.b);
@@ -53,6 +82,10 @@ class SceneGraph
     struct ModelParams
     {
         Matrix4f model_matrix;
+        void setup(const Model& model, const Matrix4f& transform)
+        {
+            model_matrix = transform;
+        }
     };
     ViewParams view;
     std::vector<LightParams> lights;
