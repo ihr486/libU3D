@@ -8,6 +8,7 @@
 #include <GL/glew.h>
 
 #include "types.hpp"
+#include "util.hpp"
 
 namespace U3D
 {
@@ -16,7 +17,7 @@ class Shading
 {
     uint32_t chain_index, attributes;
     static const uint32_t SHADING_MESH = 1, SHADING_LINE = 2, SHADING_POINT = 4, SHADING_GLYPH = 8;
-    std::vector<std::vector<std::string> > shader_names;
+    std::vector<std::string> shader_names;
 public:
     Shading(BitStreamReader& reader)
     {
@@ -26,11 +27,11 @@ public:
         for(unsigned int i = 0; i < list_count; i++) {
             uint32_t shader_count = reader.read<uint32_t>();
             if(shader_count != 1) {
-                std::cerr << "Shaders with shader count greater than 1 are ignored." << std::endl;
+                U3D_WARNING << "Shaders with shader count greater than 1 are ignored." << std::endl;
             }
-            shader_names[i].resize(shader_count);
-            for(unsigned int j = 0; j < shader_count; j++) {
-                reader >> shader_names[i][j];
+            reader >> shader_names[i];
+            for(unsigned int j = 1; j < shader_count; j++) {
+                reader.read_str();
             }
         }
     }
