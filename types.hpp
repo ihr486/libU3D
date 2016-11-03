@@ -204,17 +204,35 @@ struct Matrix4f
         ret.m[2][2] = invdet * (m[0][0] * m[1][1] - m[1][0] * m[0][1]);
         return ret;
     }
-    void create_perspective_projection(Matrix4f& mat, float fovx, float aspect, float near, float far)
+    Matrix4f inverse() const {
+        Matrix4f ret;
+        float invdet = 1.0f / (m[0][0] * m[1][1] * m[2][2] + m[0][1] * m[1][2] * m[2][0] + m[0][2] * m[1][0] * m[2][1] \
+                  - m[0][2] * m[1][1] * m[2][0] - m[0][1] * m[1][0] * m[2][2] - m[0][0] * m[1][2] * m[2][1]);
+        ret.m[0][0] = invdet * (m[1][1] * m[2][2] - m[2][1] * m[1][2]);
+        ret.m[0][1] = invdet * (m[0][2] * m[2][1] - m[0][1] * m[2][2]);
+        ret.m[0][2] = invdet * (m[0][1] * m[1][2] - m[0][2] * m[1][1]);
+        ret.m[1][0] = invdet * (m[2][0] * m[1][2] - m[1][0] * m[2][2]);
+        ret.m[1][1] = invdet * (m[0][0] * m[2][2] - m[2][0] * m[0][2]);
+        ret.m[1][2] = invdet * (m[1][0] * m[0][2] - m[0][0] * m[1][2]);
+        ret.m[2][0] = invdet * (m[1][0] * m[2][1] - m[2][0] * m[1][1]);
+        ret.m[2][1] = invdet * (m[2][0] * m[0][1] - m[0][0] * m[2][1]);
+        ret.m[2][2] = invdet * (m[0][0] * m[1][1] - m[1][0] * m[0][1]);
+        ret.m[3][0] = -m[3][0];
+        ret.m[3][1] = -m[3][1];
+        ret.m[3][2] = -m[3][2];
+        return ret;
+    }
+    static void create_perspective_projection(Matrix4f& mat, float fovy, float aspect, float near, float far)
     {
-        float f = 1.0f / tanf(fovx);
-        mat.m[0][0] = f;
-        mat.m[1][1] = f / aspect;
+        float f = 1.0f / tanf(fovy);
+        mat.m[0][0] = f / aspect;
+        mat.m[1][1] = f;
         mat.m[2][2] = (near + far) / (near - far);
         mat.m[3][2] = 2.0f * near * far / (near - far);
         mat.m[2][3] = -1.0f;
         mat.m[3][3] = 0.0f;
     }
-    void create_orthogonal_projection(Matrix4f& mat, float height, float aspect, float near, float far)
+    static void create_orthogonal_projection(Matrix4f& mat, float height, float aspect, float near, float far)
     {
         mat.m[0][0] = 2.0f / (height / aspect);
         mat.m[1][1] = 2.0f / height;
@@ -238,6 +256,13 @@ struct Matrix4f
         if(zv.size() < 1 - epsilon || 1 + epsilon < zv.size()) return false;
         if(fabsf(xv * yv) > epsilon || fabsf(yv * zv) > epsilon || fabsf(zv * xv) > epsilon) return false;
         return true;
+    }
+    void identity() {
+        for(int i = 0; i < 4; i++) {
+            for(int j = 0; j < 4; j++) {
+                m[i][j] = (i == j) ? 1 : 0;
+            }
+        }
     }
 };
 

@@ -1,6 +1,10 @@
 #Makefile for libU3D demo
 
+ifeq ($(TMPDIR),)
+OBJDIR := /tmp/libU3D
+else
 OBJDIR := $(TMPDIR)/libU3D
+endif
 
 CXXSRCS := $(wildcard *.cpp)
 OBJS := $(CXXSRCS:%.cpp=$(OBJDIR)/%.o)

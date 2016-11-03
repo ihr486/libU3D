@@ -69,7 +69,6 @@ public:
                 reader >> texinfos[i].repeat;
             }
         }
-        create_shader_group();
     }
     LitTextureShader()
     {

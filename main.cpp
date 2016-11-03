@@ -16,112 +16,11 @@
 #include "viewer.hpp"
 #include "shader.hpp"
 #include "util.hpp"
+#include "gfxcontext.hpp"
+#include "scenegraph.hpp"
 
 namespace U3D
 {
-
-class Node
-{
-public:
-    struct Parent {
-        std::string name;
-        Matrix4f transform;
-    };
-    std::vector<Parent> parents;
-public:
-    Node(BitStreamReader& reader)
-    {
-        uint32_t parent_count = reader.read<uint32_t>();
-        parents.resize(parent_count);
-        for(unsigned int i = 0; i < parent_count; i++) {
-            reader >> parents[i].name >> parents[i].transform;
-        }
-    }
-    Node() {}
-    virtual ~Node() {}
-};
-
-class Group : public Node
-{
-public:
-    Group(BitStreamReader& reader) : Node(reader) {}
-    Group() {}
-};
-
-class View : public Node
-{
-    uint32_t attributes;
-    static const uint32_t UNIT_SCREEN_POSITION = 1, PROJECTION_ORTHO = 2, PROJECTION_TWO_POINT = 4, PROJECTION_ONE_POINT = 8;
-    float near_clipping, far_clipping;
-    float projection, ortho_height;
-    Vector3f proj_vector;
-    float port_x, port_y, port_w, port_h;
-    struct Backdrop
-    {
-        std::string texture_name;
-        float blend, rotation, location_x, location_y;
-        int32_t reg_x, reg_y;
-        float scale_x, scale_y;
-    };
-    std::vector<Backdrop> backdrops, overlays;
-public:
-    std::string resource_name;
-    View(BitStreamReader& reader) : Node(reader)
-    {
-        reader >> resource_name >> attributes >> near_clipping >> far_clipping;
-        switch(attributes & 0x6) {
-        case 0: //Three-point perspective projection
-            reader >> projection;
-            break;
-        case 2: //Orthographic projection
-            reader >> ortho_height;
-            break;
-        case 4: //One-point perspective projection
-        case 6: //Two-point perspective projection
-            reader >> proj_vector;
-            break;
-        }
-        reader >> port_w >> port_h >> port_x >> port_y;
-        uint32_t backdrop_count = reader.read<uint32_t>();
-        backdrops.resize(backdrop_count);
-        for(unsigned int i = 0; i < backdrop_count; i++) {
-            reader >> backdrops[i].texture_name >> backdrops[i].blend >> backdrops[i].location_x >> backdrops[i].location_y;
-            reader >> backdrops[i].reg_x >> backdrops[i].reg_y >> backdrops[i].scale_x >> backdrops[i].scale_y;
-        }
-        uint32_t overlay_count = reader.read<uint32_t>();
-        overlays.resize(overlay_count);
-        for(unsigned int i = 0; i < overlay_count; i++) {
-            reader >> backdrops[i].texture_name >> backdrops[i].blend >> backdrops[i].location_x >> backdrops[i].location_y;
-            reader >> backdrops[i].reg_x >> backdrops[i].reg_y >> backdrops[i].scale_x >> backdrops[i].scale_y;
-        }
-    }
-};
-
-class Model : public Node
-{
-    uint32_t visibility;
-    static const uint32_t FRONT_VISIBLE = 1, BACK_VISIBLE = 2;
-public:
-    std::string resource_name;
-    Model(BitStreamReader& reader) : Node(reader)
-    {
-        reader >> resource_name >> visibility;
-    }
-    void add_shading_modifier(Shading *shading)
-    {
-        delete shading;
-    }
-};
-
-class Light : public Node
-{
-public:
-    std::string resource_name;
-    Light(BitStreamReader& reader) : Node(reader)
-    {
-        reader >> resource_name;
-    }
-};
 
 class Material
 {
@@ -143,61 +42,6 @@ public:
         emissive = Color3f(0, 0, 0);
         reflectivity = 0;
         opacity = 1.0f;
-    }
-};
-
-class LightResource
-{
-    uint32_t attributes;
-    static const uint32_t LIGHT_ENABLED = 1, LIGHT_SPECULAR = 2, SPOT_DECAY = 4;
-    uint8_t type;
-    static const uint8_t LIGHT_AMBIENT = 0, LIGHT_DIRECTIONAL = 1, LIGHT_POINT = 2, LIGHT_SPOT = 3;
-    Color3f color;
-    float att_constant, att_linear, att_quadratic;
-    float spot_angle, intensity;
-public:
-    LightResource(BitStreamReader& reader)
-    {
-        reader >> attributes >> type >> color;
-        reader.read<float>();
-        reader >> att_constant >> att_linear >> att_quadratic >> spot_angle >> intensity;
-    }
-    LightResource()
-    {
-        attributes = 0x00000001, type = 0x00, color = Color3f(0.75f, 0.75f, 0.75f);
-    }
-};
-
-class ViewResource
-{
-public:
-    struct Pass
-    {
-        std::string root_node_name;
-        uint32_t render_attributes;
-        uint32_t fog_mode;
-        Color3f fog_color;
-        float fog_alpha;
-        float fog_near, fog_far;
-    };
-    static const uint32_t FOG_ENABLED = 1;
-    static const uint32_t FOG_EXPONENTIAL = 1, FOG_EXPONENTIAL2 = 2;
-    std::vector<Pass> passes;
-public:
-    ViewResource(BitStreamReader& reader)
-    {
-        uint32_t pass_count = reader.read<uint32_t>();
-        passes.resize(pass_count);
-        for(unsigned int i = 0; i < pass_count; i++) {
-            reader >> passes[i].root_node_name >> passes[i].render_attributes;
-            reader >> passes[i].fog_mode >> passes[i].fog_color >> passes[i].fog_alpha >> passes[i].fog_near >> passes[i].fog_far;
-        }
-    }
-    ViewResource()
-    {
-        passes.resize(1);
-        passes[0].root_node_name = "";
-        passes[0].render_attributes = 0x00000000;
     }
 };
 
@@ -282,6 +126,10 @@ static ModelResource *create_model_modifier_chain(BitStreamReader& reader)
         case 0xFFFFFF44:    //Bone Weight Modifier Block
         case 0xFFFFFF46:    //CLOD Modifier Block
             std::fprintf(stderr, "Modifier Type 0x%08X is not implemented in the current version.\n", subblock.get_type());
+            break;
+        case 0xFFFFFF45:
+            std::fprintf(stderr, "Shading Modifier \"%s\"\n", name.c_str());
+            head->add_shading_modifier(new Shading(reader));
             break;
         default:
             std::fprintf(stderr, "Illegal modifier 0x%08X in an instance modifier chain\n", subblock.get_type());
@@ -471,10 +319,20 @@ public:
         for(std::map<std::string, Node *>::iterator i = nodes.begin(); i != nodes.end(); i++) delete i->second;
     }
     Node *get_node(const std::string& name) {
-        return nodes[name];
+        std::map<std::string, Node *>::iterator i = nodes.find(name);
+        if(i != nodes.end()) {
+            return i->second;
+        } else {
+            return NULL;
+        }
     }
     View *get_view(const std::string& name) {
-        return dynamic_cast<View *>(nodes[name]);
+        std::map<std::string, Node *>::iterator i = nodes.find(name);
+        if(i != nodes.end()) {
+            return dynamic_cast<View *>(nodes[name]);
+        } else {
+            return NULL;
+        }
     }
     View *get_first_view() {
         for(std::map<std::string, Node *>::iterator i = nodes.begin(); i != nodes.end(); i++) {
@@ -484,10 +342,16 @@ public:
         return NULL;
     }
     bool get_world_transform(Matrix4f *mat, const Node *node, const Node *root) {
+        if(node == root) {
+            mat->identity();
+            return true;
+        }
         for(std::vector<Node::Parent>::const_iterator i = node->parents.begin(); i != node->parents.end(); i++) {
+            U3D_LOG << "Parent = " << i->name << std::endl;
             Node *parent = nodes[i->name];
             if(parent == root) {
                 *mat *= i->transform;
+                U3D_LOG << "World transform = " << *mat << std::endl;
                 return true;
             } else {
                 if(get_world_transform(mat, parent, root)) {
@@ -498,32 +362,61 @@ public:
         }
         return false;
     }
-    /*ViewAssembly *create_assembly(const View *view) {
+    GraphicsContext *create_context() {
+        GraphicsContext *context = new GraphicsContext();
+
+        for(std::map<std::string, LitTextureShader *>::iterator i = shaders.begin(); i != shaders.end(); i++) {
+            context->add_shader_group(i->first, i->second->create_shader_group());
+        }
+        for(std::map<std::string, Texture *>::iterator i = textures.begin(); i != textures.end(); i++) {
+            context->add_texture(i->first, i->second->load_texture());
+        }
+        for(std::map<std::string, ModelResource *>::iterator i = models.begin(); i != models.end(); i++) {
+            context->add_render_group(i->first, i->second->create_render_group());
+        }
+
+        return context;
+    }
+    SceneGraph *create_scenegraph(const View *view, int pass_index) {
         ViewResource *rsc = views[view->resource_name];
-        Node *root_node = nodes[rsc->passes[0].root_node_name];
+        std::string& root_node_name = rsc->passes[pass_index].root_node_name;
+        U3D_LOG << "Root node = " << root_node_name << std::endl;
+        Node *root_node = nodes[root_node_name];
+        Matrix4f root_node_transform;
+        if(!get_world_transform(&root_node_transform, root_node, nodes[""])) {
+            U3D_WARNING << "Root node does not belong to the World." << std::endl;
+            return NULL;
+        }
+        Matrix4f absolute_view_transform;
+        if(!get_world_transform(&absolute_view_transform, view, nodes[""])) {
+            U3D_WARNING << "View node does not belong to the World." << std::endl;
+            return NULL;
+        }
+        Matrix4f relative_view_transform = absolute_view_transform.inverse() * root_node_transform;
+        SceneGraph *scene = new SceneGraph(*view, *rsc, relative_view_transform);
+        U3D_LOG << "View transform = " << relative_view_transform << std::endl;
         for(std::map<std::string, Node *>::iterator i = nodes.begin(); i != nodes.end(); i++) {
+            U3D_LOG << "Inspecting node " << i->first << std::endl;
             Matrix4f world_transform;
             if(get_world_transform(&world_transform, i->second, root_node)) {
                 Light *light = dynamic_cast<Light *>(i->second);
                 if(light != NULL) {
                     U3D_LOG << "Light node " << light->resource_name << " found." << std::endl;
+                    LightResource *light_rsc = lights[light->resource_name];
+                    scene->register_light(*light_rsc, world_transform);
                     continue;
                 }
                 Model *model = dynamic_cast<Model *>(i->second);
                 if(model != NULL) {
                     U3D_LOG << "Model node " << model->resource_name << " found." << std::endl;
+                    ModelResource *model_rsc = models[model->resource_name];
+                    scene->register_model(*model, *model_rsc, world_transform);
                     continue;
                 }
             }
         }
-        ViewAssembly *assembly = new ViewAssembly();
-        return assembly;
-    }*/
-    Dictionary *create_dictionary()
-    {
-        for(std::map<std::string, LitTextureShader *>::iterator i = shaders.begin(); i != shaders.end(); i++) {
-
-        }
+        U3D_LOG << "SceneGraph created." << std::flush;
+        return scene;
     }
 };
 
@@ -575,8 +468,10 @@ int main(int argc, char *argv[])
         if(!view_matrix.is_view()) {
             U3D_WARNING << "View matrix does not seem to be legal." << std::endl;
         }
-        U3D::Matrix4f inverse_view = view_matrix.inverse_as_view();
+        U3D::Matrix4f inverse_view = view_matrix.inverse();
         U3D_LOG << "Inverse view matrix = " << std::endl << inverse_view << std::endl;
+
+        U3D::SceneGraph *scenegraph = model.create_scenegraph(defaultview, 0);
 
         U3D::AutoHandle<SDL_Window *> window(SDL_CreateWindow("Universal 3D testbed", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, 480, 360, SDL_WINDOW_OPENGL | SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE), SDL_DestroyWindow);
         if(!window) {
@@ -588,8 +483,12 @@ int main(int argc, char *argv[])
             throw U3D_ERROR << "Failed to create an OpenGL context.";
         }
 
+        SDL_GL_MakeCurrent(window, context);
+
         {
             Viewer viewer;
+
+            U3D::GraphicsContext *u3d_context = model.create_context();
 
             SDL_Event event;
             do {
@@ -607,7 +506,11 @@ int main(int argc, char *argv[])
 
                 SDL_GL_SwapWindow(window);
             } while(event.type != SDL_QUIT);
+
+            delete u3d_context;
         }
+
+        delete scenegraph;
     } catch(const U3D::Error& err) {
         std::cerr << err.what() << std::endl;
     }

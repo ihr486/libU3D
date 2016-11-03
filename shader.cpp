@@ -28,6 +28,7 @@ GLuint compile_shader(GLenum type, FILE *fp)
         if(log_length > 0) {
             char *log_msg = new char[log_length];
             glGetShaderInfoLog(shader, log_length, NULL, log_msg);
+            U3D_WARNING << log_msg << std::endl;
             delete[] log_msg;
         }
     }
@@ -49,6 +50,7 @@ GLuint link_program(GLuint vertex_shader, GLuint fragment_shader)
         if(length > 0) {
             char *log_msg = new char[length];
             glGetProgramInfoLog(program, length, NULL, log_msg);
+            U3D_WARNING << log_msg << std::endl;
             delete[] log_msg;
         }
     }
@@ -63,7 +65,7 @@ namespace U3D
 
 ShaderGroup *LitTextureShader::create_shader_group()
 {
-    FILE *fs = fopen("common.frag", "w");
+    FILE *fs = fopen("common.frag", "w+");
 
     fprintf(fs, "#version 110\nvarying vec4 fragment_color;\n");
     for(int i = 0; i < 8; i++) {
@@ -107,7 +109,8 @@ ShaderGroup *LitTextureShader::create_shader_group()
         }
     }
     fprintf(fs, "}\n");
-    //GLuint common_fragment_shader = compile_shader(GL_FRAGMENT_SHADER, fs);
+    rewind(fs);
+    GLuint common_fragment_shader = compile_shader(GL_FRAGMENT_SHADER, fs);
     fclose(fs);
 
     const char vs_header[] =
@@ -120,7 +123,7 @@ ShaderGroup *LitTextureShader::create_shader_group()
         "uniform vec4 material_ambient, material_emissive;\n"
         "uniform float material_reflectivity, material_opacity;\n";
 
-    FILE *vsa = fopen("ambient.vert", "w");
+    FILE *vsa = fopen("ambient.vert", "w+");
     fprintf(vsa, "%s", vs_header);
     fprintf(vsa, "uniform vec4 light_color;\n");
     for(int i = 0; i < 8; i++) {
@@ -140,9 +143,11 @@ ShaderGroup *LitTextureShader::create_shader_group()
         }
     }
     fprintf(vsa, "}\n");
+    rewind(vsa);
+    GLuint ambient_shader = compile_shader(GL_VERTEX_SHADER, vsa);
     fclose(vsa);
 
-    FILE *vsd = fopen("directional.vert", "w");
+    FILE *vsd = fopen("directional.vert", "w+");
     fprintf(vsd, "%s", vs_header);
     fprintf(vsd, "uniform vec4 light_color;\n"
                  "uniform mat4 light_transform;\n"
@@ -170,9 +175,11 @@ ShaderGroup *LitTextureShader::create_shader_group()
         }
     }
     fprintf(vsd, "}\n");
+    rewind(vsd);
+    GLuint directional_shader = compile_shader(GL_VERTEX_SHADER, vsd);
     fclose(vsd);
 
-    FILE *vsp = fopen("point.vert", "w");
+    FILE *vsp = fopen("point.vert", "w+");
     fprintf(vsp, "%s", vs_header);
     fprintf(vsp, "uniform vec4 light_color;\n"
                  "uniform mat4 light_transform;\n"
@@ -197,15 +204,17 @@ ShaderGroup *LitTextureShader::create_shader_group()
                  "\tfloat attenuation = light_att0 + light_att1 * viewspace_light_distance + light_att2 * viewspace_light_distance * viewspace_light_distance;\n");
     for(int i = 0; i < 8; i++) {
         if(shader_channels & (1 << i)) {
-            fprintf(vsp, "\ttexcoord%d = vertex_texcoord%d;\n", i);
+            fprintf(vsp, "\ttexcoord%d = vertex_texcoord%d;\n", i, i);
         }
     }
     fprintf(vsp, "\tfragment_color = light_intensity * ((diffuse + specular) / attenuation + ambient) + emissive;\n"
                  "\tgl_Position = PVM_matrix * vertex_position;\n"
                  "}\n");
+    rewind(vsp);
+    GLuint point_shader = compile_shader(GL_VERTEX_SHADER, vsp);
     fclose(vsp);
 
-    FILE *vss = fopen("spot.vert", "w");
+    FILE *vss = fopen("spot.vert", "w+");
     fprintf(vss, "%s", vs_header);
     fprintf(vss, "uniform vec4 light_color;\n"
                  "uniform mat4 light_transform;\n"
@@ -238,10 +247,18 @@ ShaderGroup *LitTextureShader::create_shader_group()
     fprintf(vss, "\tfragment_color = light_intensity * (spot_attenuation * (diffuse + specular) / attenuation) + ambient + emissive;\n"
                  "\tgl_Position = PVM_matrix * vertex_position;\n"
                  "}\n");
+    rewind(vss);
+    GLuint spot_shader = compile_shader(GL_VERTEX_SHADER, vss);
+    fclose(vss);
 
-    //ShaderGroup *group = new ShaderGroup();
+    ShaderGroup *group = new ShaderGroup();
 
-    return NULL;
+    group->ambient_program = link_program(ambient_shader, common_fragment_shader);
+    group->directional_program = link_program(directional_shader, common_fragment_shader);
+    group->point_program = link_program(point_shader, common_fragment_shader);
+    group->spot_program = link_program(spot_shader, common_fragment_shader);
+
+    return group;
 }
 
 }

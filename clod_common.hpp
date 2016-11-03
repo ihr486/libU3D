@@ -108,10 +108,19 @@ public:
 
 class ModelResource
 {
+    Shading *shading;
 public:
-    ModelResource() {}
-    virtual ~ModelResource() {}
+    ModelResource() : shading(NULL) {}
+    virtual ~ModelResource() {
+        if(shading != NULL) {
+            delete shading;
+        }
+    }
     virtual RenderGroup *create_render_group() = 0;
+    void add_shading_modifier(Shading *shading)
+    {
+        this->shading = shading;
+    }
 };
 
 class CLOD_Object
