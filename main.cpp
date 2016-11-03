@@ -22,29 +22,6 @@
 namespace U3D
 {
 
-class Material
-{
-    uint32_t attributes;
-    static const uint32_t AMBIENT = 1, DIFFUSE = 2, SPECULAR = 4, EMISSIVE = 8, REFLECTIVITY = 16, OPACITY = 32;
-    Color3f ambient, diffuse, specular, emissive;
-    float reflectivity, opacity;
-public:
-    Material(BitStreamReader& reader)
-    {
-        reader >> attributes >> ambient >> diffuse >> specular >> emissive >> reflectivity >> opacity;
-    }
-    Material()
-    {
-        attributes = 0x0000003F;
-        ambient = Color3f(0.75f, 0.75f, 0.75f);
-        diffuse = Color3f(0, 0, 0);
-        specular = Color3f(0, 0, 0);
-        emissive = Color3f(0, 0, 0);
-        reflectivity = 0;
-        opacity = 1.0f;
-    }
-};
-
 static uint32_t read_modifier_count(BitStreamReader& reader)
 {
     uint32_t attribute;
@@ -347,11 +324,9 @@ public:
             return true;
         }
         for(std::vector<Node::Parent>::const_iterator i = node->parents.begin(); i != node->parents.end(); i++) {
-            U3D_LOG << "Parent = " << i->name << std::endl;
             Node *parent = nodes[i->name];
             if(parent == root) {
                 *mat *= i->transform;
-                U3D_LOG << "World transform = " << *mat << std::endl;
                 return true;
             } else {
                 if(get_world_transform(mat, parent, root)) {
@@ -366,7 +341,7 @@ public:
         GraphicsContext *context = new GraphicsContext();
 
         for(std::map<std::string, LitTextureShader *>::iterator i = shaders.begin(); i != shaders.end(); i++) {
-            context->add_shader_group(i->first, i->second->create_shader_group());
+            context->add_shader_group(i->first, i->second->create_shader_group(materials[i->second->material_name]));
         }
         for(std::map<std::string, Texture *>::iterator i = textures.begin(); i != textures.end(); i++) {
             context->add_texture(i->first, i->second->load_texture());
@@ -396,7 +371,6 @@ public:
         SceneGraph *scene = new SceneGraph(*view, *rsc, relative_view_transform);
         U3D_LOG << "View transform = " << relative_view_transform << std::endl;
         for(std::map<std::string, Node *>::iterator i = nodes.begin(); i != nodes.end(); i++) {
-            U3D_LOG << "Inspecting node " << i->first << std::endl;
             Matrix4f world_transform;
             if(get_world_transform(&world_transform, i->second, root_node)) {
                 Light *light = dynamic_cast<Light *>(i->second);
@@ -503,6 +477,8 @@ int main(int argc, char *argv[])
                     }
                 }
                 viewer.render();
+
+                scenegraph->render(u3d_context);
 
                 SDL_GL_SwapWindow(window);
             } while(event.type != SDL_QUIT);

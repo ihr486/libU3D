@@ -63,7 +63,7 @@ GLuint link_program(GLuint vertex_shader, GLuint fragment_shader)
 namespace U3D
 {
 
-ShaderGroup *LitTextureShader::create_shader_group()
+ShaderGroup *LitTextureShader::create_shader_group(const Material* material)
 {
     FILE *fs = fopen("common.frag", "w+");
 
@@ -257,6 +257,7 @@ ShaderGroup *LitTextureShader::create_shader_group()
     group->directional_program = link_program(directional_shader, common_fragment_shader);
     group->point_program = link_program(point_shader, common_fragment_shader);
     group->spot_program = link_program(spot_shader, common_fragment_shader);
+    group->material.configure(material);
 
     return group;
 }

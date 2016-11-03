@@ -262,6 +262,11 @@ class SceneGraph
         {
             model_matrix = transform;
             name = model.resource_name;
+            if(model.shading != NULL) {
+            } else if(model_rsc.shading != NULL) {
+            } else {
+                U3D_WARNING << "No shading specified for model: " << model.resource_name << std::endl;
+            }
         }
     };
     ViewParams view;
@@ -278,6 +283,13 @@ public:
     void register_model(const Model& model, const ModelResource& model_rsc, const Matrix4f& transform)
     {
         this->models.push_back(ModelParams(model, model_rsc, transform));
+    }
+    void render(GraphicsContext *context)
+    {
+        for(std::vector<LightParams>::iterator i = lights.begin(); i != lights.end(); i++) {
+            for(std::vector<ModelParams>::iterator j = models.begin(); j != models.end(); j++) {
+            }
+        }
     }
 };
 

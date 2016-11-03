@@ -106,8 +106,11 @@ public:
     }
 };
 
+class SceneGraph;
+
 class ModelResource
 {
+    friend class SceneGraph;
     Shading *shading;
 public:
     ModelResource() : shading(NULL) {}

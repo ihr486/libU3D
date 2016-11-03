@@ -10,6 +10,33 @@
 namespace U3D
 {
 
+class ShaderGroup;
+
+class Material
+{
+    friend class ShaderGroup;
+
+    uint32_t attributes;
+    static const uint32_t AMBIENT = 1, DIFFUSE = 2, SPECULAR = 4, EMISSIVE = 8, REFLECTIVITY = 16, OPACITY = 32;
+    Color3f ambient, diffuse, specular, emissive;
+    float reflectivity, opacity;
+public:
+    Material(BitStreamReader& reader)
+    {
+        reader >> attributes >> ambient >> diffuse >> specular >> emissive >> reflectivity >> opacity;
+    }
+    Material()
+    {
+        attributes = 0x0000003F;
+        ambient = Color3f(0.75f, 0.75f, 0.75f);
+        diffuse = Color3f(0, 0, 0);
+        specular = Color3f(0, 0, 0);
+        emissive = Color3f(0, 0, 0);
+        reflectivity = 0;
+        opacity = 1.0f;
+    }
+};
+
 struct ShaderGroup
 {
     GLuint point_program, spot_program, directional_program, ambient_program;
@@ -26,11 +53,48 @@ struct ShaderGroup
             glUniform1f(glGetUniformLocation(program, "material_reflectivity"), reflectivity);
             glUniform1f(glGetUniformLocation(program, "material_opacity"), opacity);
         }
+        void configure(const Material *material)
+        {
+            ambient = material->ambient;
+            diffuse = material->diffuse;
+            specular = material->specular;
+            emissive = material->emissive;
+            reflectivity = material->reflectivity;
+            opacity = material->opacity;
+        }
     };
+    MaterialParams material;
+    GLuint use(uint8_t type)
+    {
+        GLuint program = 0;
+        switch(type) {
+        case 0:
+            program = ambient_program;
+            break;
+        case 1:
+            program = directional_program;
+            break;
+        case 2:
+            program = point_program;
+            break;
+        case 3:
+            program = spot_program;
+            break;
+        }
+        if(program != 0) {
+            glUseProgram(program);
+            material.load(program);
+        }
+        return program;
+    }
 };
+
+class FileStructure;
 
 class LitTextureShader
 {
+    friend class FileStructure;
+
     uint32_t attributes;
     static const uint32_t LIGHTING_ENABLED = 1, ALPHA_TEST_ENABLED = 2, USE_VERTEX_COLOR = 4;
     float alpha_reference;
@@ -81,7 +145,7 @@ public:
         shader_channels = 0;
         alpha_texture_channels = 0;
     }
-    ShaderGroup *create_shader_group();
+    ShaderGroup *create_shader_group(const Material* mat);
 };
 
 }
