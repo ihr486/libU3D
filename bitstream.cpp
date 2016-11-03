@@ -28,7 +28,7 @@ const uint8_t BitStreamReader::bit_reverse_table[256] =
 
 BitStreamReader::BitStreamReader(const std::string& filename) : bit_position(0), high(0xFFFF), low(0), underflow(0), data_buffer(NULL), metadata_buffer(NULL)
 {
-    ifs.open(filename.c_str(), std::ios::in);
+    ifs.open(filename.c_str(), std::ifstream::binary);
     if(!ifs.is_open()) {
         U3D_WARNING << "Failed to open: " << filename << "." << std::endl;
     } else {
