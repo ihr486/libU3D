@@ -136,7 +136,7 @@ ShaderGroup *LitTextureShader::create_shader_group(const Material* material)
                  "\tgl_Position = PVM_matrix * vertex_position;\n");
     for(int i = 0; i < 8; i++) {
         if(shader_channels & (1 << i)) {
-            fprintf(vsa, "\ttexcoord%d = vertex_texcoord%d;\n", i, i);
+            fprintf(vsa, "\ttexcoord%d = vertex_texcoord%d * vec2(1.0, -1.0);\n", i, i);
         }
     }
     fprintf(vsa, "}\n");
@@ -168,7 +168,7 @@ ShaderGroup *LitTextureShader::create_shader_group(const Material* material)
                  "\tgl_Position = PVM_matrix * vertex_position;\n");
     for(int i = 0; i < 8; i++) {
         if(shader_channels & (1 << i)) {
-            fprintf(vsd, "\ttexcoord%d = vertex_texcoord%d;\n", i, i);
+            fprintf(vsd, "\ttexcoord%d = vertex_texcoord%d * vec2(1.0, -1.0);\n", i, i);
         }
     }
     fprintf(vsd, "}\n");
@@ -200,10 +200,10 @@ ShaderGroup *LitTextureShader::create_shader_group(const Material* material)
                  "\tfloat attenuation = light_att0 + light_att1 * viewspace_light_distance + light_att2 * viewspace_light_distance * viewspace_light_distance;\n");
     for(int i = 0; i < 8; i++) {
         if(shader_channels & (1 << i)) {
-            fprintf(vsp, "\ttexcoord%d = vertex_texcoord%d;\n", i, i);
+            fprintf(vsp, "\ttexcoord%d = vertex_texcoord%d * vec2(1.0, -1.0);\n", i, i);
         }
     }
-    fprintf(vsp, "\tfragment_color = light_intensity * ((diffuse + specular) / attenuation) + emissive;\n"
+    fprintf(vsp, "\tfragment_color = light_intensity * ((diffuse + specular) / attenuation) + ambient + emissive;\n"
                  "\tgl_Position = PVM_matrix * vertex_position;\n"
                  "}\n");
     rewind(vsp);
@@ -236,7 +236,7 @@ ShaderGroup *LitTextureShader::create_shader_group(const Material* material)
                  "\tvec4 emissive = material_emissive;\n");
     for(int i = 0; i < 8; i++) {
         if(shader_channels & (1 << i)) {
-            fprintf(vss, "\ttexcoord%d = vertex_texcoord%d;\n", i, i);
+            fprintf(vss, "\ttexcoord%d = vertex_texcoord%d * vec2(1.0, -1.0);\n", i, i);
         }
     }
     fprintf(vss, "\tfragment_color = light_intensity * (spot_attenuation * (diffuse + specular) / attenuation) + ambient + emissive;\n"

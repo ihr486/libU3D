@@ -391,11 +391,11 @@ void CLOD_Mesh::update_resolution(BitStreamReader& reader)
                             new_faces[j].corners[l].texcoord[k] = reader[cTextureIndexGlobal].read<uint32_t>();
                         }
                     } else {
-                        new_faces[j].corners[l].texcoord[k] = last_corners[l].texcoord[k];
+                        new_faces[j].corners[l].texcoord[k] = last_corners[l].texcoord[0];
                     }
-                    last_corners[l].texcoord[k] = new_faces[j].corners[l].texcoord[k];
-                    if(l == 0) insert_unique(split_texcoords[k], new_faces[j].corners[0].texcoord[k]);
+                    last_corners[l].texcoord[0] = new_faces[j].corners[l].texcoord[k];
                 }
+                insert_unique(split_texcoords[k], new_faces[j].corners[0].texcoord[k]);
             }
             Face face;
             face.shading_id = new_faces[j].shading_id;
@@ -487,7 +487,6 @@ void CLOD_Mesh::update_resolution(BitStreamReader& reader)
         }
     }
     cur_res = end;
-    dump_author_mesh();
 }
 
 void CLOD_Mesh::dump_author_mesh()
