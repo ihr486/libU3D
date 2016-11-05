@@ -1,6 +1,4 @@
-#include "mesh.hpp"
-
-#include <algorithm>
+#include "u3d_internal.hh"
 
 namespace U3D
 {
@@ -476,7 +474,7 @@ void CLOD_Mesh::update_resolution(BitStreamReader& reader)
 
                     Quaternion4f normal_diff(Vector3f::dequantize(normal_sign >> 1, normal_X, normal_Y, normal_Z, normal_iq));
                     normal_diff.w = sqrtf(1.0 - std::min(1.0f, normal_diff.x * normal_diff.x + normal_diff.y * normal_diff.y + normal_diff.z * normal_diff.z));
-                    
+
                     new_norms[k] = normal_diff * Quaternion4f(new_norms[k]);
                 }
                 for(unsigned int k = 0; k < client_faces.size(); k++) {

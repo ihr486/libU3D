@@ -1,14 +1,5 @@
 #pragma once
 
-#include <stdint.h>
-#include <cstdio>
-#include <vector>
-
-#include <GL/glew.h>
-
-#include "bitstream.hpp"
-#include "util.hpp"
-
 namespace U3D
 {
 

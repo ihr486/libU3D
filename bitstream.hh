@@ -1,13 +1,5 @@
 #pragma once
 
-#include <cstdio>
-#include <iostream>
-#include <fstream>
-#include <vector>
-#include <string.h>
-
-#include "types.hpp"
-
 namespace U3D
 {
 

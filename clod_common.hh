@@ -1,15 +1,5 @@
 #pragma once
 
-#include <iostream>
-#include <vector>
-#include <string>
-#include <algorithm>
-
-#include <GL/glew.h>
-
-#include "types.hpp"
-#include "util.hpp"
-
 namespace U3D
 {
 

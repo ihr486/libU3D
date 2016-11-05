@@ -1,6 +1,4 @@
-#include "texture.hpp"
-
-#include <SDL2/SDL_image.h>
+#include "u3d_internal.hh"
 
 namespace U3D
 {

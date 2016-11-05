@@ -1,23 +1,4 @@
-#include <stdio.h>
-#include <iostream>
-#include <fstream>
-#include <string>
-#include <cmath>
-#include <vector>
-#include <map>
-
-#include <SDL.h>
-
-#include "types.hpp"
-#include "bitstream.hpp"
-#include "mesh.hpp"
-#include "plset.hpp"
-#include "texture.hpp"
-#include "viewer.hpp"
-#include "shader.hpp"
-#include "util.hpp"
-#include "gfxcontext.hpp"
-#include "scenegraph.hpp"
+#include "u3d_internal.hh"
 
 namespace U3D
 {
@@ -491,6 +472,6 @@ int main(int argc, char *argv[])
         std::cerr << err.what() << std::endl;
     }
     SDL_Quit();
-    
+
     return 0;
 }

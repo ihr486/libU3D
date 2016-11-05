@@ -1,6 +1,4 @@
-#include "viewer.hpp"
-#include <GL/glew.h>
-#include <math.h>
+#include "u3d_internal.hh"
 
 Viewer::Viewer()
 {
@@ -26,4 +24,3 @@ void Viewer::render()
 {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 }
-

@@ -1,4 +1,4 @@
-#include "plset.hpp"
+#include "u3d_internal.hh"
 
 namespace U3D
 {
@@ -63,7 +63,7 @@ void PointSet::update_resolution(BitStreamReader& reader)
                     uint32_t diffuse_G = reader[cColorDiffG].read<uint32_t>();
                     uint32_t diffuse_B = reader[cColorDiffB].read<uint32_t>();
                     uint32_t diffuse_A = reader[cColorDiffA].read<uint32_t>();
-                    
+
                     new_point.diffuse = diffuse_colors.size();
                     diffuse_colors.push_back(pred_diffuse + Color4f::dequantize(diffuse_sign, diffuse_R, diffuse_G, diffuse_B, diffuse_A, diffuse_iq));
                 } else {
@@ -79,7 +79,7 @@ void PointSet::update_resolution(BitStreamReader& reader)
                     uint32_t specular_G = reader[cColorDiffG].read<uint32_t>();
                     uint32_t specular_B = reader[cColorDiffB].read<uint32_t>();
                     uint32_t specular_A = reader[cColorDiffA].read<uint32_t>();
-                    
+
                     new_point.specular = specular_colors.size();
                     specular_colors.push_back(pred_specular + Color4f::dequantize(specular_sign, specular_R, specular_G, specular_B, specular_A, specular_iq));
                 } else {
@@ -182,7 +182,7 @@ void LineSet::update_resolution(BitStreamReader& reader)
                         uint32_t diffuse_G = reader[cColorDiffG].read<uint32_t>();
                         uint32_t diffuse_B = reader[cColorDiffB].read<uint32_t>();
                         uint32_t diffuse_A = reader[cColorDiffA].read<uint32_t>();
-                        
+
                         new_line.terminals[j].diffuse = diffuse_colors.size();
                         diffuse_colors.push_back(pred_diffuse + Color4f::dequantize(diffuse_sign, diffuse_R, diffuse_G, diffuse_B, diffuse_A, diffuse_iq));
                     } else {
@@ -198,7 +198,7 @@ void LineSet::update_resolution(BitStreamReader& reader)
                         uint32_t specular_G = reader[cColorDiffG].read<uint32_t>();
                         uint32_t specular_B = reader[cColorDiffB].read<uint32_t>();
                         uint32_t specular_A = reader[cColorDiffA].read<uint32_t>();
-                        
+
                         new_line.terminals[j].specular = specular_colors.size();
                         specular_colors.push_back(pred_specular + Color4f::dequantize(specular_sign, specular_R, specular_G, specular_B, specular_A, specular_iq));
                     } else {

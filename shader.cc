@@ -1,8 +1,4 @@
-#include "shader.hpp"
-#include "util.hpp"
-
-#include <stdio.h>
-#include <stdlib.h>
+#include "u3d_internal.hh"
 
 namespace
 {

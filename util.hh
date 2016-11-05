@@ -1,10 +1,5 @@
 #pragma once
 
-#include <iostream>
-#include <exception>
-#include <sstream>
-#include <string>
-
 namespace U3D
 {
 

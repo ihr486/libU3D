@@ -1,10 +1,5 @@
 #pragma once
 
-#include <math.h>
-#include <stdint.h>
-#include <string.h>
-#include <iostream>
-
 namespace U3D
 {
 

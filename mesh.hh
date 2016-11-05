@@ -1,13 +1,5 @@
 #pragma once
 
-#include <cstdio>
-#include <vector>
-#include <string>
-
-#include "types.hpp"
-#include "bitstream.hpp"
-#include "clod_common.hpp"
-
 namespace U3D
 {
 
