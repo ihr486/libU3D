@@ -306,8 +306,9 @@ public:
             for(std::vector<Node::Parent>::const_iterator i = node->parents.begin(); i != node->parents.end(); i++) {
                 Node *parent = nodes[i->name];
                 if(get_world_transform(mat, parent, root)) {
-                    //*mat *= i->transform;
-                    *mat = i->transform * (*mat);
+                    U3D_LOG << "Parent = " << i->name << std::endl;
+                    U3D_LOG << "Transform = " << i->transform << std::endl;
+                    *mat *= i->transform;
                     return true;
                 }
             }
@@ -364,6 +365,7 @@ public:
                     scene->register_model(*model, *model_rsc, world_transform);
                     continue;
                 }
+                U3D_LOG << "Something else found." << std::endl;
             }
         }
         U3D_LOG << "SceneGraph created." << std::endl;
@@ -452,12 +454,17 @@ int main(int argc, char *argv[])
                             viewer.resize(event.window.data1, event.window.data2);
                         }
                     }
+                    if(event.type == SDL_KEYUP) {
+                        if(event.key.keysym.sym == SDLK_SPACE) {
+                            U3D_LOG << "SDLK_SPACE" << std::endl;
+                            viewer.render();
+
+                            scenegraph->render(u3d_context);
+
+                            SDL_GL_SwapWindow(window);
+                        }
+                    }
                 }
-                viewer.render();
-
-                scenegraph->render(u3d_context);
-
-                SDL_GL_SwapWindow(window);
             } while(event.type != SDL_QUIT);
 
             delete u3d_context;

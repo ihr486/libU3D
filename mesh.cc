@@ -487,7 +487,7 @@ void CLOD_Mesh::update_resolution(BitStreamReader& reader)
         }
     }
     cur_res = end;
-    //dump_author_mesh();
+    dump_author_mesh();
 }
 
 void CLOD_Mesh::dump_author_mesh()
@@ -544,10 +544,11 @@ RenderGroup *CLOD_Mesh::create_render_group()
             if(faces[j].shading_id == i) {
                 for(int k = 0; k < 3; k++) {
                     memcpy(head, &positions[faces[j].corners[k].position], sizeof(GLfloat) * 3);
-                    dump << positions[faces[j].corners[k].position] << std::endl;
+                    dump << positions[faces[j].corners[k].position];
                     head += 3;
                     if(flags & RenderGroup::BUFFER_NORMAL_MASK) {
                         memcpy(head, &normals[faces[j].corners[k].normal], sizeof(GLfloat) * 3);
+                        dump << normals[faces[j].corners[k].normal] << std::endl;
                         head += 3;
                     }
                     if(flags & RenderGroup::BUFFER_DIFFUSE_MASK) {

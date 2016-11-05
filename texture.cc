@@ -22,6 +22,9 @@ void Texture::load_continuation(BitStreamReader& reader)
     }
     uint32_t bytes_read = reader.read_remainder(image_data + byte_position, byte_count - byte_position);
     byte_position += bytes_read;
+    U3D_LOG << "Texture continuation loaded." << std::endl;
+    std::ofstream texfile("texture.png", std::ios::binary);
+    texfile.write((const char *)image_data, byte_count);
 }
 
 Texture::Texture()
