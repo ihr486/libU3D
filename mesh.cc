@@ -520,6 +520,7 @@ RenderGroup *CLOD_Mesh::create_render_group()
     for(unsigned int i = 0; i < faces.size(); i++) {
         face_count[faces[i].shading_id]++;
     }
+    std::ofstream dump("model_dump.log", std::ofstream::out);
     for(unsigned int i = 0; i < shading_descs.size(); i++) {
         uint32_t flags = RenderGroup::BUFFER_POSITION_MASK;
         if(!(attributes & EXCLUDE_NORMALS)) {
@@ -543,6 +544,7 @@ RenderGroup *CLOD_Mesh::create_render_group()
             if(faces[j].shading_id == i) {
                 for(int k = 0; k < 3; k++) {
                     memcpy(head, &positions[faces[j].corners[k].position], sizeof(GLfloat) * 3);
+                    dump << positions[faces[j].corners[k].position] << std::endl;
                     head += 3;
                     if(flags & RenderGroup::BUFFER_NORMAL_MASK) {
                         memcpy(head, &normals[faces[j].corners[k].normal], sizeof(GLfloat) * 3);

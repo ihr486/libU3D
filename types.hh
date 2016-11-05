@@ -221,10 +221,12 @@ struct Matrix4f
     {
         float f = 1.0f / tanf(fovy);
         mat.m[0][0] = f / aspect;
-        mat.m[1][1] = f;
-        mat.m[2][2] = (near + far) / (near - far);
-        mat.m[3][2] = 2.0f * near * far / (near - far);
-        mat.m[2][3] = -1.0f;
+        mat.m[1][1] = 0;
+        mat.m[2][2] = 0;
+        mat.m[2][1] = f;
+        mat.m[1][2] = (near + far) / (near - far);
+        mat.m[3][2] = -2.0f * near * far / (near - far);
+        mat.m[1][3] = 1.0f;
         mat.m[3][3] = 0.0f;
     }
     static void create_orthogonal_projection(Matrix4f& mat, float height, float aspect, float near, float far)

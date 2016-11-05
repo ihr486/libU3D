@@ -3,8 +3,12 @@
 namespace U3D
 {
 
+class SceneGraph;
+
 class Shading
 {
+    friend class SceneGraph;
+
     uint32_t chain_index, attributes;
     static const uint32_t SHADING_MESH = 1, SHADING_LINE = 2, SHADING_POINT = 4, SHADING_GLYPH = 8;
     std::vector<std::string> shader_names;
@@ -17,7 +21,7 @@ public:
         for(unsigned int i = 0; i < list_count; i++) {
             uint32_t shader_count = reader.read<uint32_t>();
             if(shader_count != 1) {
-                U3D_WARNING << "Shaders with shader count greater than 1 are ignored." << std::endl;
+                U3D_WARNING << "Shaders with shader index greater than 1 are ignored." << std::endl;
             }
             reader >> shader_names[i];
             for(unsigned int j = 1; j < shader_count; j++) {
@@ -29,6 +33,8 @@ public:
 
 class RenderGroup
 {
+    friend class SceneGraph;
+
     struct RenderElement {
         GLuint buffer;
         int count;
@@ -56,43 +62,50 @@ public:
     }
     void load(int index, const GLfloat *src, uint32_t flags, int count) {
         glBindBuffer(GL_ARRAY_BUFFER, elements[index].buffer);
-        glBufferData(GL_ARRAY_BUFFER, sizeof(GLfloat) * __builtin_popcount(flags), src, GL_STATIC_DRAW);
+        glBufferData(GL_ARRAY_BUFFER, sizeof(GLfloat) * __builtin_popcount(flags) * count, src, GL_STATIC_DRAW);
         glBindBuffer(GL_ARRAY_BUFFER, 0);
         elements[index].count = count;
         elements[index].flags = flags;
     }
-    void render() {
-        for(unsigned int i = 0; i < elements.size(); i++) {
-            int stride = sizeof(GLfloat) * __builtin_popcount(elements[i].flags);
-            glBindBuffer(GL_ARRAY_BUFFER, elements[i].buffer);
-            glEnableVertexAttribArray(0);
-            GLfloat *head = 0;
-            glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, stride, head);
+    void render(int index, GLuint program) {
+        int stride = sizeof(GLfloat) * __builtin_popcount(elements[index].flags);
+        glBindBuffer(GL_ARRAY_BUFFER, elements[index].buffer);
+        GLint vertex_position = glGetAttribLocation(program, "vertex_position");
+        glEnableVertexAttribArray(vertex_position);
+        GLfloat *head = 0;
+        glVertexAttribPointer(vertex_position, 3, GL_FLOAT, GL_FALSE, stride, head);
+        head += 3;
+        if(elements[index].flags & BUFFER_NORMAL_MASK) {
+            GLint vertex_normal = glGetAttribLocation(program, "vertex_normal");
+            glEnableVertexAttribArray(vertex_normal);
+            glVertexAttribPointer(vertex_normal, 3, GL_FLOAT, GL_FALSE, stride, head);
             head += 3;
-            if(elements[i].flags & BUFFER_NORMAL_MASK) {
-                glEnableVertexAttribArray(1);
-                glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, stride, head);
-                head += 3;
-            }
-            if(elements[i].flags & BUFFER_DIFFUSE_MASK) {
-                glEnableVertexAttribArray(2);
-                glVertexAttribPointer(2, 4, GL_FLOAT, GL_FALSE, stride, head);
-                head += 4;
-            }
-            if(elements[i].flags & BUFFER_SPECULAR_MASK) {
-                glEnableVertexAttribArray(3);
-                glVertexAttribPointer(3, 4, GL_FLOAT, GL_FALSE, stride, head);
-                head += 4;
-            }
-            for(int j = 0; j < 8; j++) {
-                if(elements[i].flags & (BUFFER_TEXCOORD0_MASK << (2 * j))) {
-                    glEnableVertexAttribArray(4 + j);
-                    glVertexAttribPointer(4 + j, 2, GL_FLOAT, GL_FALSE, stride, head);
-                    head += 2;
-                }
-            }
-            glDrawArrays(mode, 0, elements[i].count);
         }
+        if(elements[index].flags & BUFFER_DIFFUSE_MASK) {
+            GLint vertex_diffuse = glGetAttribLocation(program, "vertex_diffuse");
+            glEnableVertexAttribArray(vertex_diffuse);
+            glVertexAttribPointer(vertex_diffuse, 4, GL_FLOAT, GL_FALSE, stride, head);
+            head += 4;
+        }
+        if(elements[index].flags & BUFFER_SPECULAR_MASK) {
+            GLint vertex_specular = glGetAttribLocation(program, "vertex_specular");
+            glEnableVertexAttribArray(vertex_specular);
+            glVertexAttribPointer(vertex_specular, 4, GL_FLOAT, GL_FALSE, stride, head);
+            head += 4;
+        }
+        static const char *texcoord_attrib_names[8] = {
+            "vertex_texcoord0", "vertex_texcoord1", "vertex_texcoord2", "vertex_texcoord3",
+            "vertex_texcoord4", "vertex_texcoord5", "vertex_texcoord6", "vertex_texcoord7"
+        };
+        for(int j = 0; j < 8; j++) {
+            if(elements[index].flags & (BUFFER_TEXCOORD0_MASK << (2 * j))) {
+                GLint vertex_texcoord = glGetAttribLocation(program, texcoord_attrib_names[j]);
+                glEnableVertexAttribArray(vertex_texcoord);
+                glVertexAttribPointer(vertex_texcoord, 2, GL_FLOAT, GL_FALSE, stride, head);
+                head += 2;
+            }
+        }
+        glDrawArrays(mode, 0, elements[index].count);
         glBindBuffer(GL_ARRAY_BUFFER, 0);
     }
 };

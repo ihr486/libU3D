@@ -61,7 +61,7 @@ namespace U3D
 
 ShaderGroup *LitTextureShader::create_shader_group(const Material* material)
 {
-    FILE *fs = fopen("common.frag", "w+");
+    /*FILE *fs = fopen("common.frag", "w+");
 
     fprintf(fs, "#version 110\nvarying vec4 fragment_color;\n");
     for(int i = 0; i < 8; i++) {
@@ -146,7 +146,7 @@ ShaderGroup *LitTextureShader::create_shader_group(const Material* material)
     FILE *vsd = fopen("directional.vert", "w+");
     fprintf(vsd, "%s", vs_header);
     fprintf(vsd, "uniform vec4 light_color;\n"
-                 "uniform mat4 light_transform;\n"
+                 "uniform vec4 light_direction;\n"
                  "uniform float light_intensity;\n");
     for(int i = 0; i < 8; i++) {
         if(shader_channels & (1 << i)) {
@@ -157,9 +157,9 @@ ShaderGroup *LitTextureShader::create_shader_group(const Material* material)
     fprintf(vsd, "void main() {\n"
                  "\tvec4 viewspace_normal = normalize(normal_matrix * vertex_normal);\n"
                  "\tvec4 viewspace_position = modelview_matrix * vertex_position;\n"
-                 "\tvec4 viewspace_incidence = light_transform * vec4(0.0, 0.0, -1.0, 0.0);\n"
+                 "\tvec4 viewspace_incidence = light_direction;\n"
                  "\tvec4 viewspace_camera = normalize(-viewspace_position);\n"
-                 "\tvec4 diffuse = light_color * material_diffuse * max(0.0, dot(viewspace_normal, viewspace_incidence));\n"
+                 "\tvec4 diffuse = light_color * material_diffuse * max(0.0, dot(viewspace_normal, -viewspace_incidence));\n"
                  "\tvec4 specular = light_color * material_specular * pow(max(0.0, dot(viewspace_camera, reflect(viewspace_incidence, viewspace_normal))), material_reflectivity);\n"
                  "\tvec4 ambient = light_color * material_ambient;\n"
                  "\tvec4 emissive = material_emissive;\n"
@@ -178,7 +178,7 @@ ShaderGroup *LitTextureShader::create_shader_group(const Material* material)
     FILE *vsp = fopen("point.vert", "w+");
     fprintf(vsp, "%s", vs_header);
     fprintf(vsp, "uniform vec4 light_color;\n"
-                 "uniform mat4 light_transform;\n"
+                 "uniform vec4 light_position;\n"
                  "uniform float light_att0, light_att1, light_att2, light_intensity;\n");
     for(int i = 0; i < 8; i++) {
         if(shader_channels & (1 << i)) {
@@ -189,14 +189,13 @@ ShaderGroup *LitTextureShader::create_shader_group(const Material* material)
     fprintf(vsp, "void main() {\n"
                  "\tvec4 viewspace_normal = normalize(normal_matrix * vertex_normal);\n"
                  "\tvec4 viewspace_position = modelview_matrix * vertex_position;\n"
-                 "\tvec4 viewspace_light_position = modelview_matrix * light_transform * vec4(0.0, 0.0, 0.0, 1.0);\n"
-                 "\tvec4 viewspace_incidence = normalize(viewspace_position - viewspace_light_position);\n"
+                 "\tvec4 viewspace_incidence = normalize(viewspace_position - light_position);\n"
                  "\tvec4 viewspace_camera = normalize(-viewspace_position);\n"
-                 "\tvec4 diffuse = light_color * material_diffuse * max(0.0, dot(viewspace_normal, viewspace_incidence));\n"
+                 "\tvec4 diffuse = light_color * material_diffuse * max(0.0, dot(viewspace_normal, -viewspace_incidence));\n"
                  "\tvec4 specular = light_color * material_specular * pow(max(0.0, dot(viewspace_camera, reflect(viewspace_incidence, viewspace_normal))), material_reflectivity);\n"
                  "\tvec4 ambient = light_color * material_ambient;\n"
                  "\tvec4 emissive = material_emissive;\n"
-                 "\tfloat viewspace_light_distance = length(viewspace_position - viewspace_light_position);\n"
+                 "\tfloat viewspace_light_distance = length(viewspace_position - light_position);\n"
                  "\tfloat attenuation = light_att0 + light_att1 * viewspace_light_distance + light_att2 * viewspace_light_distance * viewspace_light_distance;\n");
     for(int i = 0; i < 8; i++) {
         if(shader_channels & (1 << i)) {
@@ -213,7 +212,7 @@ ShaderGroup *LitTextureShader::create_shader_group(const Material* material)
     FILE *vss = fopen("spot.vert", "w+");
     fprintf(vss, "%s", vs_header);
     fprintf(vss, "uniform vec4 light_color;\n"
-                 "uniform mat4 light_transform;\n"
+                 "uniform vec4 light_position, light_direction;\n"
                  "uniform float light_spot_angle, light_exponent;\n"
                  "uniform float light_intensity, light_att0, light_att1, light_att2;\n");
     for(int i = 0; i < 8; i++) {
@@ -225,13 +224,12 @@ ShaderGroup *LitTextureShader::create_shader_group(const Material* material)
     fprintf(vss, "void main() {\n"
                  "\tvec4 viewspace_normal = normalize(normal_matrix * vertex_normal);\n"
                  "\tvec4 viewspace_position = modelview_matrix * vertex_position;\n"
-                 "\tvec4 viewspace_light_position = modelview_matrix * light_transform * vec4(0.0, 0.0, 0.0, 1.0);\n"
-                 "\tvec4 viewspace_incidence = normalize(viewspace_position - viewspace_light_position);\n"
+                 "\tvec4 viewspace_incidence = normalize(viewspace_position - light_position);\n"
                  "\tvec4 viewspace_camera = normalize(-viewspace_position);\n"
-                 "\tfloat viewspace_light_distance = length(viewspace_position - viewspace_light_position);\n"
+                 "\tfloat viewspace_light_distance = length(viewspace_position - light_position);\n"
                  "\tfloat attenuation = light_att0 + light_att1 * viewspace_light_distance + light_att2 * viewspace_light_distance * viewspace_light_distance;\n"
-                 "\tfloat spot_attenuation = pow(dot(normalize(light_transform * vec4(0.0, 0.0, -1.0, 0.0)), viewspace_incidence), light_exponent);\n"
-                 "\tvec4 diffuse = light_color * material_diffuse * max(0.0, dot(viewspace_normal, viewspace_incidence));\n"
+                 "\tfloat spot_attenuation = pow(dot(light_direction, viewspace_incidence), light_exponent);\n"
+                 "\tvec4 diffuse = light_color * material_diffuse * max(0.0, dot(viewspace_normal, -viewspace_incidence));\n"
                  "\tvec4 specular = light_color * material_specular * pow(max(0.0, dot(viewspace_camera, reflect(viewspace_incidence, viewspace_normal))), material_reflectivity);\n"
                  "\tvec4 ambient = light_color * material_ambient;\n"
                  "\tvec4 emissive = material_emissive;\n");
@@ -245,9 +243,25 @@ ShaderGroup *LitTextureShader::create_shader_group(const Material* material)
                  "}\n");
     rewind(vss);
     GLuint spot_shader = compile_shader(GL_VERTEX_SHADER, vss);
-    fclose(vss);
+    fclose(vss);*/
 
     ShaderGroup *group = new ShaderGroup();
+
+    FILE *fs = fopen("common.frag", "r");
+    GLuint common_fragment_shader = compile_shader(GL_FRAGMENT_SHADER, fs);
+    fclose(fs);
+    FILE *vsa = fopen("ambient.vert", "r");
+    GLuint ambient_shader = compile_shader(GL_VERTEX_SHADER, vsa);
+    fclose(vsa);
+    FILE *vsd = fopen("directional.vert", "r");
+    GLuint directional_shader = compile_shader(GL_VERTEX_SHADER, vsd);
+    fclose(vsd);
+    FILE *vsp = fopen("point.vert", "r");
+    GLuint point_shader = compile_shader(GL_VERTEX_SHADER, vsp);
+    fclose(vsp);
+    FILE *vss = fopen("spot.vert", "r");
+    GLuint spot_shader = compile_shader(GL_VERTEX_SHADER, vss);
+    fclose(vss);
 
     group->ambient_program = link_program(ambient_shader, common_fragment_shader);
     group->directional_program = link_program(directional_shader, common_fragment_shader);

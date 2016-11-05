@@ -301,17 +301,13 @@ public:
     }
     bool get_world_transform(Matrix4f *mat, const Node *node, const Node *root) {
         if(node == root) {
-            mat->identity();
             return true;
-        }
-        for(std::vector<Node::Parent>::const_iterator i = node->parents.begin(); i != node->parents.end(); i++) {
-            Node *parent = nodes[i->name];
-            if(parent == root) {
-                *mat *= i->transform;
-                return true;
-            } else {
+        } else {
+            for(std::vector<Node::Parent>::const_iterator i = node->parents.begin(); i != node->parents.end(); i++) {
+                Node *parent = nodes[i->name];
                 if(get_world_transform(mat, parent, root)) {
-                    *mat *= i->transform;
+                    //*mat *= i->transform;
+                    *mat = i->transform * (*mat);
                     return true;
                 }
             }
@@ -370,7 +366,7 @@ public:
                 }
             }
         }
-        U3D_LOG << "SceneGraph created." << std::flush;
+        U3D_LOG << "SceneGraph created." << std::endl;
         return scene;
     }
 };

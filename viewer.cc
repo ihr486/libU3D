@@ -9,8 +9,8 @@ Viewer::Viewer()
     glBindVertexArray(vertex_array_object);
 
     glEnable(GL_TEXTURE_2D);
-    glEnable(GL_DEPTH_TEST);
-    glDepthFunc(GL_LESS);
+    //glEnable(GL_DEPTH_TEST);
+    //glDepthFunc(GL_LESS);
 
     glClearColor(0, 0, 0, 0);
 }

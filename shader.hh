@@ -39,12 +39,17 @@ struct ShaderGroup
         float reflectivity, opacity;
         void load(GLuint program)
         {
-            glUniform3f(glGetUniformLocation(program, "material_diffuse"), diffuse.r, diffuse.g, diffuse.b);
-            glUniform3f(glGetUniformLocation(program, "material_specular"), specular.r, specular.g, specular.b);
-            glUniform3f(glGetUniformLocation(program, "material_ambient"), ambient.r, ambient.g, ambient.b);
-            glUniform3f(glGetUniformLocation(program, "material_emissive"), emissive.r, emissive.g, emissive.b);
+            glUniform4f(glGetUniformLocation(program, "material_diffuse"), diffuse.r, diffuse.g, diffuse.b, 1.0f);
+            glUniform4f(glGetUniformLocation(program, "material_specular"), specular.r, specular.g, specular.b, 1.0f);
+            glUniform4f(glGetUniformLocation(program, "material_ambient"), ambient.r, ambient.g, ambient.b, 1.0f);
+            glUniform4f(glGetUniformLocation(program, "material_emissive"), emissive.r, emissive.g, emissive.r, 1.0f);
             glUniform1f(glGetUniformLocation(program, "material_reflectivity"), reflectivity);
             glUniform1f(glGetUniformLocation(program, "material_opacity"), opacity);
+
+            U3D_LOG << "Diffuse = " << diffuse << std::endl;
+            U3D_LOG << "Specular = " << specular << std::endl;
+            U3D_LOG << "Ambient = " << ambient << std::endl;
+            U3D_LOG << "Emissive = " << emissive << std::endl;
         }
         void configure(const Material *material)
         {

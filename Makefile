@@ -6,8 +6,8 @@ else
 OBJDIR := $(TMPDIR)/libU3D
 endif
 
-CXXSRCS := $(wildcard *.cpp)
-OBJS := $(CXXSRCS:%.cpp=$(OBJDIR)/%.o)
+CXXSRCS := $(wildcard *.cc)
+OBJS := $(CXXSRCS:%.cc=$(OBJDIR)/%.o)
 
 EMULATOR := $(shell uname -o)
 PROCESSOR := $(shell uname -m)
@@ -43,7 +43,7 @@ clean:
 install: $(BIN)
 	install --mode=755 --target-directory=/usr/local/bin $<
 
-$(OBJDIR)/%.o: %.cpp | $(OBJDIR)
+$(OBJDIR)/%.o: %.cc | $(OBJDIR)
 	$(CXX) $(CXXFLAGS) -c -o $@ $<
 
 $(BIN): $(OBJS)
