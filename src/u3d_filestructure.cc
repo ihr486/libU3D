@@ -304,35 +304,74 @@ SceneGraph *FileStructure::create_scenegraph(const View *view, int pass_index) {
         U3D_WARNING << "Root node does not belong to the World." << std::endl;
         return NULL;
     }
-    Matrix4f absolute_view_transform;
-    if(!get_world_transform(&absolute_view_transform, view, nodes[""])) {
+    Matrix4f view_transform;
+    if(!get_world_transform(&view_transform, view, nodes[""])) {
         U3D_WARNING << "View node does not belong to the World." << std::endl;
         return NULL;
     }
-    Matrix4f relative_view_transform = absolute_view_transform.inverse() * root_node_transform;
-    SceneGraph *scene = new SceneGraph(*view, *rsc, relative_view_transform);
-    U3D_LOG << "View transform = " << relative_view_transform << std::endl;
+    SceneGraph *scene = new SceneGraph(*view, *rsc, view_transform);
+    U3D_LOG << "View transform = " << view_transform << std::endl;
     for(std::map<std::string, Node *>::iterator i = nodes.begin(); i != nodes.end(); i++) {
         Matrix4f world_transform;
-        if(get_world_transform(&world_transform, i->second, root_node)) {
-            Light *light = dynamic_cast<Light *>(i->second);
-            if(light != NULL) {
+        Light *light = dynamic_cast<Light *>(i->second);
+        if(light != NULL && !light->resource_name.empty()) {
+            if(get_world_transform(&world_transform, i->second, nodes[""])) {
                 U3D_LOG << "Light node " << light->resource_name << " found." << std::endl;
                 LightResource *light_rsc = lights[light->resource_name];
                 scene->register_light(*light_rsc, world_transform);
-                continue;
             }
-            Model *model = dynamic_cast<Model *>(i->second);
-            if(model != NULL) {
+            continue;
+        }
+        Model *model = dynamic_cast<Model *>(i->second);
+        if(model != NULL && !model->resource_name.empty()) {
+            if(get_world_transform(&world_transform, i->second, root_node)) {
                 U3D_LOG << "Model node " << model->resource_name << " found." << std::endl;
                 ModelResource *model_rsc = models[model->resource_name];
-                scene->register_model(*model, *model_rsc, world_transform);
-                continue;
+                scene->register_model(*model, *model_rsc, root_node_transform * world_transform);
             }
-            U3D_LOG << "Something else found." << std::endl;
+            continue;
         }
     }
     U3D_LOG << "SceneGraph created." << std::endl;
     return scene;
+}
+
+void FileStructure::dump_tree_recursive(FILE *fp, std::map<std::string, std::vector<std::string> >& tree, const std::string& name, int depth)
+{
+    for(int i = 0; i < depth; i++) {
+        fputc(' ', fp);
+    }
+    Light *light = dynamic_cast<Light *>(nodes[name]);
+    if(light != NULL) {
+        fprintf(fp, "Light <%s> => <%s>\n", name.c_str(), light->resource_name.c_str());
+    } else {
+        Model *model = dynamic_cast<Model *>(nodes[name]);
+        if(model != NULL) {
+            fprintf(fp, "Model <%s> => <%s>\n", name.c_str(), model->resource_name.c_str());
+        } else {
+            View *view = dynamic_cast<View *>(nodes[name]);
+            if(view != NULL) {
+                ViewResource *view_rsc = views[view->resource_name];
+                ViewResource::Pass& first_pass = view_rsc->passes[0];
+                fprintf(fp, "View <%s> => <%s>\n", name.c_str(), first_pass.root_node_name.c_str());
+            } else {
+                fprintf(fp, "Group <%s>\n", name.c_str());
+            }
+        }
+    }
+    for(std::vector<std::string>::const_iterator i = tree[name].begin(); i != tree[name].end(); i++) {
+        dump_tree_recursive(fp, tree, *i, depth + 1);
+    }
+}
+
+void FileStructure::dump_tree(FILE *fp)
+{
+    std::map<std::string, std::vector<std::string> > tree;
+    for(std::map<std::string, Node *>::iterator i = nodes.begin(); i != nodes.end(); i++) {
+        for(std::vector<Node::Parent>::iterator j = i->second->parents.begin(); j != i->second->parents.end(); j++) {
+            tree[j->name].push_back(i->first);
+        }
+    }
+    dump_tree_recursive(fp, tree, "", 0);
 }
 }

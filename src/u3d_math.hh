@@ -278,6 +278,39 @@ struct Matrix4f
             }
         }
     }
+    static Matrix4f create_X_rotation(float rad)
+    {
+        Matrix4f ret;
+        ret.m[1][1] = cosf(rad);
+        ret.m[2][1] = sinf(rad);
+        ret.m[1][2] = -sinf(rad);
+        ret.m[2][2] = cosf(rad);
+        return ret;
+    }
+    static Matrix4f create_Y_rotation(float rad)
+    {
+        Matrix4f ret;
+        ret.m[2][2] = cosf(rad);
+        ret.m[0][2] = sinf(rad);
+        ret.m[2][0] = -sinf(rad);
+        ret.m[0][0] = cosf(rad);
+        return ret;
+    }
+    static Matrix4f create_Z_rotation(float rad)
+    {
+        Matrix4f ret;
+        ret.m[0][0] = cosf(rad);
+        ret.m[1][0] = sinf(rad);
+        ret.m[0][1] = -sinf(rad);
+        ret.m[1][1] = cosf(rad);
+        return ret;
+    }
+    void translate(const Vector3f& v)
+    {
+        m[3][0] += v.x;
+        m[3][1] += v.y;
+        m[3][2] += v.z;
+    }
 };
 
 static inline std::ostream& operator<<(std::ostream& os, const Matrix4f& mat) {

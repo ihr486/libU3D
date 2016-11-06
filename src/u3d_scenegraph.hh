@@ -181,6 +181,9 @@ public:
     {
         uint32_t pass_count = reader.read<uint32_t>();
         passes.resize(pass_count);
+        if(pass_count > 1) {
+            U3D_WARNING << "Multipass rendering." << std::endl;
+        }
         for(unsigned int i = 0; i < pass_count; i++) {
             reader >> passes[i].root_node_name >> passes[i].render_attributes;
             reader >> passes[i].fog_mode >> passes[i].fog_color >> passes[i].fog_alpha >> passes[i].fog_near >> passes[i].fog_far;
@@ -208,36 +211,38 @@ class SceneGraph
             float viewport[4];
             glGetFloatv(GL_VIEWPORT, viewport);
             float aspect = viewport[2] / viewport[3];
-            U3D_LOG << "Aspect ratio = " << viewport[2] << " / " << viewport[3] << std::endl;
             Matrix4f projection_matrix;
             if(type == PERSPECTIVE) {
                 Matrix4f::create_perspective_projection(projection_matrix, fovy, aspect, near, far);
-            } else if(ORTHOGONAL) {
+            } else if(type == ORTHOGONAL) {
                 Matrix4f::create_orthogonal_projection(projection_matrix, height, aspect, near, far);
             }
-            Matrix4f modelview_matrix = view_matrix * model_matrix;
+            Matrix4f modelview_matrix = view_matrix.inverse() * model_matrix;
             Matrix4f PVM_matrix = projection_matrix * modelview_matrix;
             Matrix4f normal_matrix = modelview_matrix.create_normal_matrix();
-            //U3D_LOG << "Near = " << near << ", far = " << far << std::endl;
+            /*U3D_LOG << "Near = " << near << ", far = " << far << std::endl;
             U3D_LOG << "projection_matrix = " << projection_matrix << std::endl;
             U3D_LOG << "model_matrix = " << model_matrix << std::endl;
             U3D_LOG << "view_matrix = " << view_matrix << std::endl;
             U3D_LOG << "PVM_matrix = " << PVM_matrix << std::endl;
-            U3D_LOG << "normal_matrix = " << normal_matrix << std::endl;
+            U3D_LOG << "normal_matrix = " << normal_matrix << std::endl;*/
             glUniformMatrix4fv(glGetUniformLocation(program, "PVM_matrix"), 1, GL_FALSE, (GLfloat *)&PVM_matrix);
             glUniformMatrix4fv(glGetUniformLocation(program, "modelview_matrix"), 1, GL_FALSE, (GLfloat *)&modelview_matrix);
             glUniformMatrix4fv(glGetUniformLocation(program, "normal_matrix"), 1, GL_FALSE, (GLfloat *)&normal_matrix);
         }
         ViewParams(const View& view, const ViewResource& view_rsc, const Matrix4f& transform)
         {
-            this->view_matrix = transform;
+            view_matrix = transform;
             fovy = view.projection / 180.0f * 3.1415927f;
             height = view.ortho_height;
             near = view.near_clipping;
             //far = view.far_clipping;
-            far = 1000.0f;
+            //far = 1000.0f;
+            far = view.far_clipping > 1E+6f ? 1E+6f : view.far_clipping;
             if(view.attributes & View::PROJECTION_ORTHO) {
                 type = ORTHOGONAL;
+            } else if(view.attributes & (View::PROJECTION_ONE_POINT | View::PROJECTION_TWO_POINT)) {
+                throw U3D_ERROR << "One- and two- point projections are not supported.";
             } else {
                 type = PERSPECTIVE;
             }
@@ -253,11 +258,11 @@ class SceneGraph
         Color3f color;
         float att_constant, att_linear, att_quadratic;
         float spot_angle, intensity;
-        LightParams(const LightResource& light, const Matrix4f& transform, const Matrix4f& view_matrix)
+        LightParams(const LightResource& light, const Matrix4f& transform)
         {
             type = light.type;
-            position = view_matrix * transform * Vector3f(0, 0, 0);
-            direction = (view_matrix.create_normal_matrix() * transform.create_normal_matrix() * Vector3f(0, 0, -1)).normalize();
+            position = transform * Vector3f(0, 0, 0);
+            direction = (transform.create_normal_matrix() * Vector3f(0, 0, -1)).normalize();
             color = light.color;
             att_constant = light.att_constant;
             att_linear = light.att_linear;
@@ -265,31 +270,33 @@ class SceneGraph
             spot_angle = light.spot_angle;
             intensity = light.intensity;
         }
-        void load(GLuint program)
+        void load(GLuint program, const Matrix4f& view_matrix)
         {
-            U3D_LOG << "Position = " << position << std::endl;
-            U3D_LOG << "Direction = " << direction << std::endl;
+            Vector3f viewspace_position = view_matrix * position;
+            Vector3f viewspace_direction = (view_matrix.create_normal_matrix() * direction).normalize();
+            /*U3D_LOG << "Position = " << viewspace_position << std::endl;
+            U3D_LOG << "Direction = " << viewspace_direction << std::endl;
             U3D_LOG << "Color = " << color << std::endl;
             U3D_LOG << "Intensity = " << intensity << std::endl;
             U3D_LOG << "Constant Attenuation = " << att_constant << std::endl;
             U3D_LOG << "Linear Attenuation = " << att_linear << std::endl;
-            U3D_LOG << "Quadratic Attenuation = " << att_quadratic << std::endl;
+            U3D_LOG << "Quadratic Attenuation = " << att_quadratic << std::endl;*/
             glUniform4f(glGetUniformLocation(program, "light_color"), color.r, color.g, color.b, 1.0f);
             switch(type) {
             case LIGHT_DIRECTIONAL:
-                glUniform4f(glGetUniformLocation(program, "light_direction"), direction.x, direction.y, direction.z, 0.0f);
+                glUniform4f(glGetUniformLocation(program, "light_direction"), viewspace_direction.x, viewspace_direction.y, viewspace_direction.z, 0.0f);
                 glUniform1f(glGetUniformLocation(program, "light_intensity"), intensity);
                 break;
             case LIGHT_POINT:
-                glUniform4f(glGetUniformLocation(program, "light_position"), position.x, position.y, position.z, 1.0f);
+                glUniform4f(glGetUniformLocation(program, "light_position"), viewspace_position.x, viewspace_position.y, viewspace_position.z, 1.0f);
                 glUniform1f(glGetUniformLocation(program, "light_intensity"), intensity);
                 glUniform1f(glGetUniformLocation(program, "light_att0"), att_constant);
                 glUniform1f(glGetUniformLocation(program, "light_att1"), att_linear);
                 glUniform1f(glGetUniformLocation(program, "light_att2"), att_quadratic);
                 break;
             case LIGHT_SPOT:
-                glUniform4f(glGetUniformLocation(program, "light_direction"), direction.x, direction.y, direction.z, 0.0f);
-                glUniform4f(glGetUniformLocation(program, "light_position"), position.x, position.y, position.z, 1.0f);
+                glUniform4f(glGetUniformLocation(program, "light_direction"), viewspace_direction.x, viewspace_direction.y, viewspace_direction.z, 0.0f);
+                glUniform4f(glGetUniformLocation(program, "light_position"), viewspace_position.x, viewspace_position.y, viewspace_position.z, 1.0f);
                 glUniform1f(glGetUniformLocation(program, "light_intensity"), intensity);
                 glUniform1f(glGetUniformLocation(program, "light_att0"), att_constant);
                 glUniform1f(glGetUniformLocation(program, "light_att1"), att_linear);
@@ -312,8 +319,6 @@ class SceneGraph
                 shader_names.assign(model.shading->shader_names.begin(), model.shading->shader_names.end());
             } else if(model_rsc.shading != NULL) {
                 shader_names.assign(model_rsc.shading->shader_names.begin(), model_rsc.shading->shader_names.end());
-            } else {
-                U3D_WARNING << "No shading specified for model: " << model.resource_name << std::endl;
             }
         }
     };
@@ -326,7 +331,7 @@ public:
     }
     void register_light(const LightResource& light, const Matrix4f& transform)
     {
-        this->lights.push_back(LightParams(light, transform, view.view_matrix));
+        this->lights.push_back(LightParams(light, transform));
     }
     void register_model(const Model& model, const ModelResource& model_rsc, const Matrix4f& transform)
     {
@@ -336,31 +341,41 @@ public:
     {
         glBlendFunc(GL_ONE, GL_ONE);
         for(std::vector<LightParams>::iterator i = lights.begin(); i != lights.end(); i++) {
-            U3D_LOG << "Light type = " << (int)i->type << std::endl;
+            //U3D_LOG << "Light type = " << (int)i->type << std::endl;
             for(std::vector<ModelParams>::iterator j = models.begin(); j != models.end(); j++) {
-                U3D_LOG << "Rendering model \"" << j->name << "\"" <<  std::endl;
+                //U3D_LOG << "Rendering model \"" << j->name << "\"" <<  std::endl;
                 RenderGroup *render_group = context->get_render_group(j->name);
-                if(render_group->elements.size() > j->shader_names.size()) {
-                    U3D_WARNING << "There are less shaders than the number of renderable elements." << std::endl;
-                } else {
-                    for(unsigned int k = 0; k < render_group->elements.size(); k++) {
-                        U3D_LOG << "Element " << k << ":" << j->shader_names[k] << std::endl;
-                        ShaderGroup *shader_group = context->get_shader_group(j->shader_names[k]);
-                        GLuint program = shader_group->use(i->type);
-                        i->load(program);
-                        view.load(program, j->model_matrix);
-                        for(int l = 0; l < 8; l++) {
-                            if(shader_group->shader_channels & (1 << l)) {
-                                glActiveTexture(l);
-                                glBindTexture(GL_TEXTURE_2D, context->get_texture(shader_group->texture_names[l]));
-                            }
-                        }
-                        render_group->render(k, program);
+                for(unsigned int k = 0; k < render_group->elements.size(); k++) {
+                    ShaderGroup *shader_group;
+                    if(k < j->shader_names.size()) {
+                        shader_group = context->get_shader_group(j->shader_names[k]);
+                        //U3D_LOG << "Element " << k << ":" << j->shader_names[k] << std::endl;
+                    } else {
+                        shader_group = context->get_shader_group("");
+                        //U3D_LOG << "Element " << k << ":" << std::endl;
                     }
+                    GLuint program = shader_group->use(i->type);
+                    i->load(program, view.view_matrix.inverse());
+                    view.load(program, j->model_matrix);
+                    for(int l = 0; l < 8; l++) {
+                        if(shader_group->shader_channels & (1 << l)) {
+                            glActiveTexture(l);
+                            glBindTexture(GL_TEXTURE_2D, context->get_texture(shader_group->texture_names[l]));
+                        }
+                    }
+                    render_group->render(k, program);
                 }
             }
         }
-        U3D_LOG << "SceneGraph rendered." << std::endl;
+        //U3D_LOG << "SceneGraph rendered." << std::endl;
+    }
+    Matrix4f& get_view_matrix()
+    {
+        return view.view_matrix;
+    }
+    void set_view_matrix(const Matrix4f& matrix)
+    {
+        view.view_matrix = matrix;
     }
 };
 

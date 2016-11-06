@@ -65,11 +65,11 @@ struct ShaderGroup
             glUniform1f(glGetUniformLocation(program, "material_reflectivity"), reflectivity);
             glUniform1f(glGetUniformLocation(program, "material_opacity"), opacity);
 
-            U3D_LOG << "Diffuse = " << diffuse << std::endl;
+            /*U3D_LOG << "Diffuse = " << diffuse << std::endl;
             U3D_LOG << "Specular = " << specular << std::endl;
             U3D_LOG << "Ambient = " << ambient << std::endl;
             U3D_LOG << "Emissive = " << emissive << std::endl;
-            U3D_LOG << "Reflectivity = " << reflectivity << std::endl;
+            U3D_LOG << "Reflectivity = " << reflectivity << std::endl;*/
         }
         void configure(const Material *material)
         {

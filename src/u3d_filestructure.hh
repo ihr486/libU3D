@@ -72,8 +72,6 @@ public:
             for(std::vector<Node::Parent>::const_iterator i = node->parents.begin(); i != node->parents.end(); i++) {
                 Node *parent = nodes[i->name];
                 if(get_world_transform(mat, parent, root)) {
-                    U3D_LOG << "Parent = " << i->name << std::endl;
-                    U3D_LOG << "Transform = " << i->transform << std::endl;
                     *mat *= i->transform;
                     return true;
                 }
@@ -83,5 +81,8 @@ public:
     }
     GraphicsContext *create_context();
     SceneGraph *create_scenegraph(const View *view, int pass_index);
+    void dump_tree(FILE *fp);
+private:
+    void dump_tree_recursive(FILE *fp, std::map<std::string, std::vector<std::string> >& tree, const std::string& name, int depth);
 };
 }

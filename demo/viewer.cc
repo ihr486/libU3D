@@ -28,6 +28,11 @@ public:
     void render();
 };
 
+static void debug_callback(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar *message, const void *userParam)
+{
+    U3D_WARNING << message << std::endl;
+}
+
 Viewer::Viewer()
 {
     glewInit();
@@ -35,6 +40,9 @@ Viewer::Viewer()
     GLuint vertex_array_object;
     glGenVertexArrays(1, &vertex_array_object);
     glBindVertexArray(vertex_array_object);
+
+    /*glEnable(GL_DEBUG_OUTPUT);
+    glDebugMessageCallback(debug_callback, NULL);*/
 
     glEnable(GL_TEXTURE_2D);
     glEnable(GL_DEPTH_TEST);
@@ -84,6 +92,10 @@ int main(int argc, char *argv[])
     std::cerr << (char *)lpC << " successfully parsed." << std::endl;
 #endif
 
+    FILE *dump = fopen("tree.log", "w");
+    model.dump_tree(dump);
+    fclose(dump);
+
     try {
         U3D::View *defaultview = model.get_view("DefaultView");
         if(defaultview != NULL) {
@@ -123,6 +135,9 @@ int main(int argc, char *argv[])
 
             U3D::GraphicsContext *u3d_context = model.create_context();
 
+            float rotx = 0.0f, roty = 0.0f;
+            U3D::Matrix4f original_view_matrix = scenegraph->get_view_matrix();
+
             SDL_Event event;
             do {
                 while(SDL_PollEvent(&event)) {
@@ -134,17 +149,34 @@ int main(int argc, char *argv[])
                             viewer.resize(event.window.data1, event.window.data2);
                         }
                     }
-                    if(event.type == SDL_KEYUP) {
-                        if(event.key.keysym.sym == SDLK_SPACE) {
-                            U3D_LOG << "SDLK_SPACE" << std::endl;
-                            viewer.render();
+                    if(event.type == SDL_MOUSEMOTION) {
+                        if(event.motion.state & SDL_BUTTON_LMASK) {
+                            rotx += event.motion.xrel * 0.01f;
+                            roty += event.motion.yrel * 0.01f;
 
-                            scenegraph->render(u3d_context);
+                            U3D::Matrix4f vr_matrix = original_view_matrix;
+                            U3D::Vector3f vr_offset;
+                            vr_offset.x = vr_matrix.m[3][0];
+                            vr_offset.y = vr_matrix.m[3][1];
+                            vr_offset.z = vr_matrix.m[3][2];
+                            vr_matrix.m[3][0] = 0;
+                            vr_matrix.m[3][1] = 0;
+                            vr_matrix.m[3][2] = 0;
+                            U3D::Matrix4f vu_matrix = U3D::Matrix4f::create_X_rotation(rotx) * U3D::Matrix4f::create_Y_rotation(roty);
+                            vu_matrix.translate(vr_offset);
+                            
+                            //U3D::Matrix4f view_matrix = original_view_matrix * U3D::Matrix4f::create_Y_rotation(roty);// * U3D::Matrix4f::create_X_rotation(rotx);
 
-                            SDL_GL_SwapWindow(window);
+                            scenegraph->set_view_matrix(vu_matrix * vr_matrix);
                         }
                     }
                 }
+                viewer.render();
+
+                scenegraph->render(u3d_context);
+
+                SDL_GL_SwapWindow(window);
+
             } while(event.type != SDL_QUIT);
 
             delete u3d_context;

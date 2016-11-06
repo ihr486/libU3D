@@ -26,16 +26,12 @@ CLOD_Object::CLOD_Object(bool clod_desc_flag, BitStreamReader& reader)
 {
     reader.read<uint32_t>();    //Chain index is always zero.
     reader >> attributes >> face_count >> position_count >> normal_count;
-    std::fprintf(stderr, "Face count = %u, Position count = %u, Normal count= %u.\n", face_count, position_count, normal_count);
     reader >> diffuse_count >> specular_count >> texcoord_count;
-    std::fprintf(stderr, "Diffuse count = %u, Specular count = %u, TexCoord count = %u.\n", diffuse_count, specular_count, texcoord_count);
     uint32_t shading_count = reader.read<uint32_t>();
-    std::fprintf(stderr, "Shading count = %u.\n", shading_count);
     shading_descs.resize(shading_count);
     for(unsigned int i = 0; i < shading_count; i++) {
         shading_descs[i].attributes = reader.read<uint32_t>();
         shading_descs[i].texlayer_count = reader.read<uint32_t>();
-        std::fprintf(stderr, "Shading #%u: Attribute = %u, TexLayer count = %u.\n", i, shading_descs[i].attributes, shading_descs[i].texlayer_count);
         for(unsigned int j = 0; j < shading_descs[i].texlayer_count; j++) {
             shading_descs[i].texcoord_dims[j] = reader.read<uint32_t>();
         }
@@ -43,13 +39,11 @@ CLOD_Object::CLOD_Object(bool clod_desc_flag, BitStreamReader& reader)
     }
     if(clod_desc_flag) {
         reader >> min_res >> max_res;
-        std::fprintf(stderr, "Min Res = %u, Max Res = %u.\n", min_res, max_res);
     }
     reader >> position_quality >> normal_quality >> texcoord_quality;
     reader >> position_iq >> normal_iq >> texcoord_iq >> diffuse_iq >> specular_iq;
     reader >> normal_crease >> normal_update >> normal_tolerance;
     uint32_t bone_count = reader.read<uint32_t>();
-    std::fprintf(stderr, "Bone count = %u.\n", bone_count);
     skeleton.resize(bone_count);
     for(unsigned int i = 0; i < bone_count; i++) {
         reader >> skeleton[i].name >> skeleton[i].parent_name >> skeleton[i].attributes;
@@ -87,7 +81,6 @@ void CLOD_Mesh::create_base_mesh(BitStreamReader& reader)
         std::fprintf(stderr, "Base mesh is already set up.\n");
         return;
     }
-    std::fprintf(stderr, "%u faces, %u positions, %u normals, %u diffuses, %u speculars, %u texcoords\n", face_count, position_count, normal_count, diffuse_count, specular_count, texcoord_count);
     positions.resize(position_count);
     for(unsigned int i = 0; i < position_count; i++) reader >> positions[i];
     indexer.add_positions(position_count);
@@ -120,7 +113,6 @@ void CLOD_Mesh::create_base_mesh(BitStreamReader& reader)
         indexer.add_face(i, faces[i]);
     }
     cur_res = min_res;
-    std::fprintf(stderr, "Base mesh created: %u pos, %u faces\n", position_count, face_count);
 }
 
 void CLOD_Mesh::update_resolution(BitStreamReader& reader)

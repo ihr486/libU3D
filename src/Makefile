@@ -18,3 +18,5 @@ $(LIB): $(OBJS)
 
 $(OBJDIR)/%.o: %.cc
 	$(CXX) $(CXXFLAGS) -c -o $@ $<
+
+-include $(wildcard $(OBJDIR)/*.d)

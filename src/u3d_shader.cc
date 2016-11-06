@@ -178,10 +178,15 @@ ShaderGroup *LitTextureShader::create_shader_group(const Material* material)
                  "\tvec4 viewspace_normal = normalize(normal_matrix * vertex_normal);\n"
                  "\tvec4 viewspace_position = modelview_matrix * vertex_position;\n"
                  "\tvec4 viewspace_incidence = light_direction;\n"
-                 "\tvec4 viewspace_camera = normalize(-viewspace_position);\n"
-                 "\tvec4 diffuse = light_color * material_diffuse * max(0.0, dot(viewspace_normal, -viewspace_incidence));\n"
-                 "\tvec4 specular = light_color * material_specular * pow(max(0.0, dot(viewspace_camera, reflect(viewspace_incidence, viewspace_normal))), material_reflectivity);\n"
-                 "\tvec4 ambient = light_color * material_ambient;\n"
+                 "\tvec4 viewspace_camera = normalize(-viewspace_position);\n");
+    if(attributes & USE_VERTEX_COLOR) {
+        fprintf(vsd, "\tvec4 diffuse = light_color * vertex_diffuse * max(0.0, dot(viewspace_normal, -viewspace_incidence));\n"
+                     "\tvec4 specular = light_color * vertex_specular * pow(max(0.0, dot(viewspace_camera, reflect(viewspace_incidence, viewspace_normal))), material_reflectivity);\n");
+    } else {
+        fprintf(vsd, "\tvec4 diffuse = light_color * material_diffuse * max(0.0, dot(viewspace_normal, -viewspace_incidence));\n"
+                     "\tvec4 specular = light_color * material_specular * pow(max(0.0, dot(viewspace_camera, reflect(viewspace_incidence, viewspace_normal))), material_reflectivity);\n");
+    }
+    fprintf(vsd, "\tvec4 ambient = light_color * material_ambient;\n"
                  "\tvec4 emissive = material_emissive;\n"
                  "\tfragment_color = light_intensity * (diffuse + specular + ambient) + emissive;\n"
                  "\tgl_Position = PVM_matrix * vertex_position;\n");
@@ -210,10 +215,15 @@ ShaderGroup *LitTextureShader::create_shader_group(const Material* material)
                  "\tvec4 viewspace_normal = normalize(normal_matrix * vertex_normal);\n"
                  "\tvec4 viewspace_position = modelview_matrix * vertex_position;\n"
                  "\tvec4 viewspace_incidence = normalize(viewspace_position - light_position);\n"
-                 "\tvec4 viewspace_camera = normalize(-viewspace_position);\n"
-                 "\tvec4 diffuse = light_color * material_diffuse * max(0.0, dot(viewspace_normal, -viewspace_incidence));\n"
-                 "\tvec4 specular = light_color * material_specular * pow(max(0.0, dot(viewspace_camera, reflect(viewspace_incidence, viewspace_normal))), material_reflectivity);\n"
-                 "\tvec4 ambient = light_color * material_ambient;\n"
+                 "\tvec4 viewspace_camera = normalize(-viewspace_position);\n");
+    if(attributes & USE_VERTEX_COLOR) {
+        fprintf(vsp, "\tvec4 diffuse = light_color * vertex_diffuse * max(0.0, dot(viewspace_normal, -viewspace_incidence));\n"
+                     "\tvec4 specular = light_color * vertex_specular * pow(max(0.0, dot(viewspace_camera, reflect(viewspace_incidence, viewspace_normal))), material_reflectivity);\n");
+    } else {
+        fprintf(vsp, "\tvec4 diffuse = light_color * material_diffuse * max(0.0, dot(viewspace_normal, -viewspace_incidence));\n"
+                     "\tvec4 specular = light_color * material_specular * pow(max(0.0, dot(viewspace_camera, reflect(viewspace_incidence, viewspace_normal))), material_reflectivity);\n");
+    }
+    fprintf(vsp, "\tvec4 ambient = light_color * material_ambient;\n"
                  "\tvec4 emissive = material_emissive;\n"
                  "\tfloat viewspace_light_distance = length(viewspace_position - light_position);\n"
                  "\tfloat attenuation = light_att0 + light_att1 * viewspace_light_distance + light_att2 * viewspace_light_distance * viewspace_light_distance;\n");
@@ -248,10 +258,15 @@ ShaderGroup *LitTextureShader::create_shader_group(const Material* material)
                  "\tvec4 viewspace_camera = normalize(-viewspace_position);\n"
                  "\tfloat viewspace_light_distance = length(viewspace_position - light_position);\n"
                  "\tfloat attenuation = light_att0 + light_att1 * viewspace_light_distance + light_att2 * viewspace_light_distance * viewspace_light_distance;\n"
-                 "\tfloat spot_attenuation = pow(dot(light_direction, viewspace_incidence), light_exponent);\n"
-                 "\tvec4 diffuse = light_color * material_diffuse * max(0.0, dot(viewspace_normal, -viewspace_incidence));\n"
-                 "\tvec4 specular = light_color * material_specular * pow(max(0.0, dot(viewspace_camera, reflect(viewspace_incidence, viewspace_normal))), material_reflectivity);\n"
-                 "\tvec4 ambient = light_color * material_ambient;\n"
+                 "\tfloat spot_attenuation = pow(dot(light_direction, viewspace_incidence), light_exponent);\n");
+    if(attributes & USE_VERTEX_COLOR) {
+        fprintf(vss, "\tvec4 diffuse = light_color * vertex_diffuse * max(0.0, dot(viewspace_normal, -viewspace_incidence));\n"
+                     "\tvec4 specular = light_color * vertex_specular * pow(max(0.0, dot(viewspace_camera, reflect(viewspace_incidence, viewspace_normal))), material_reflectivity);\n");
+    } else {
+        fprintf(vss, "\tvec4 diffuse = light_color * material_diffuse * max(0.0, dot(viewspace_normal, -viewspace_incidence));\n"
+                     "\tvec4 specular = light_color * material_specular * pow(max(0.0, dot(viewspace_camera, reflect(viewspace_incidence, viewspace_normal))), material_reflectivity);\n");
+    }
+    fprintf(vss, "\tvec4 ambient = light_color * material_ambient;\n"
                  "\tvec4 emissive = material_emissive;\n");
     for(int i = 0; i < 8; i++) {
         if(shader_channels & (1 << i)) {

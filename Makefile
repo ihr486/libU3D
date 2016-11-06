@@ -45,5 +45,3 @@ install:
 
 $(OBJDIR):
 	-@mkdir -p $@
-
--include $(shell find $(OBJDIR) -name '*.d')
