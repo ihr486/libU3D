@@ -50,6 +50,7 @@ struct ShaderGroup
             U3D_LOG << "Specular = " << specular << std::endl;
             U3D_LOG << "Ambient = " << ambient << std::endl;
             U3D_LOG << "Emissive = " << emissive << std::endl;
+            U3D_LOG << "Reflectivity = " << reflectivity << std::endl;
         }
         void configure(const Material *material)
         {
@@ -62,6 +63,8 @@ struct ShaderGroup
         }
     };
     MaterialParams material;
+    uint8_t shader_channels;
+    std::string texture_names[8];
     GLuint use(uint8_t type)
     {
         GLuint program = 0;
@@ -79,9 +82,18 @@ struct ShaderGroup
             program = spot_program;
             break;
         }
+        static const char *texuniforms[8] = {
+            "texture0", "texture1", "texture2", "texture3",
+            "texture4", "texture5", "texture6", "texture7"
+        };
         if(program != 0) {
             glUseProgram(program);
             material.load(program);
+            for(int i = 0; i < 8; i++) {
+                if(shader_channels & (1 << i)) {
+                    glUniform1i(glGetUniformLocation(program, texuniforms[i]), i);
+                }
+            }
         }
         return program;
     }
@@ -129,6 +141,9 @@ public:
                 reader >> texinfos[i].name >> texinfos[i].intensity >> texinfos[i].blend_function >> texinfos[i].blend_source;
                 reader >> texinfos[i].blend_constant >> texinfos[i].mode >> texinfos[i].transform >> texinfos[i].wrap_transform;
                 reader >> texinfos[i].repeat;
+                U3D_LOG << "Texture channel " << i << std::endl;
+                U3D_LOG << "Mode = " << (int)texinfos[i].mode << std::endl;
+                U3D_LOG << "Blend = " << (int)texinfos[i].blend_source << std::endl;
             }
         }
     }

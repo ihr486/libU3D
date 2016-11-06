@@ -391,11 +391,11 @@ void CLOD_Mesh::update_resolution(BitStreamReader& reader)
                             new_faces[j].corners[l].texcoord[k] = reader[cTextureIndexGlobal].read<uint32_t>();
                         }
                     } else {
-                        new_faces[j].corners[l].texcoord[k] = last_corners[l].texcoord[k];
+                        new_faces[j].corners[l].texcoord[k] = last_corners[l].texcoord[0];
                     }
-                    last_corners[l].texcoord[k] = new_faces[j].corners[l].texcoord[k];
-                    if(l == 0) insert_unique(split_texcoords[k], new_faces[j].corners[0].texcoord[k]);
+                    last_corners[l].texcoord[0] = new_faces[j].corners[l].texcoord[k];
                 }
+                insert_unique(split_texcoords[k], new_faces[j].corners[0].texcoord[k]);
             }
             Face face;
             face.shading_id = new_faces[j].shading_id;
@@ -487,7 +487,6 @@ void CLOD_Mesh::update_resolution(BitStreamReader& reader)
         }
     }
     cur_res = end;
-    //dump_author_mesh();
 }
 
 void CLOD_Mesh::dump_author_mesh()
@@ -520,7 +519,6 @@ RenderGroup *CLOD_Mesh::create_render_group()
     for(unsigned int i = 0; i < faces.size(); i++) {
         face_count[faces[i].shading_id]++;
     }
-    std::ofstream dump("model_dump.log", std::ofstream::out);
     for(unsigned int i = 0; i < shading_descs.size(); i++) {
         uint32_t flags = RenderGroup::BUFFER_POSITION_MASK;
         if(!(attributes & EXCLUDE_NORMALS)) {
@@ -544,7 +542,6 @@ RenderGroup *CLOD_Mesh::create_render_group()
             if(faces[j].shading_id == i) {
                 for(int k = 0; k < 3; k++) {
                     memcpy(head, &positions[faces[j].corners[k].position], sizeof(GLfloat) * 3);
-                    dump << positions[faces[j].corners[k].position] << std::endl;
                     head += 3;
                     if(flags & RenderGroup::BUFFER_NORMAL_MASK) {
                         memcpy(head, &normals[faces[j].corners[k].normal], sizeof(GLfloat) * 3);

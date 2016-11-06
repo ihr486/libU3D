@@ -61,9 +61,10 @@ namespace U3D
 
 ShaderGroup *LitTextureShader::create_shader_group(const Material* material)
 {
-    /*FILE *fs = fopen("common.frag", "w+");
+    FILE *fs = tmpfile();
 
-    fprintf(fs, "#version 110\nvarying vec4 fragment_color;\n");
+    fprintf(fs, "#version 110\n"
+                "varying vec4 fragment_color;\n");
     for(int i = 0; i < 8; i++) {
         if(shader_channels & (1 << i)) {
             fprintf(fs, "uniform sampler2D texture%d;\n", i);
@@ -86,7 +87,7 @@ ShaderGroup *LitTextureShader::create_shader_group(const Material* material)
             fprintf(fs, "\tvec4 layer%d_out = ", i);
         }
         if(shader_channels & (1 << i)) {
-            switch(texinfos[i].mode) {
+            switch(texinfos[i].blend_function) {
             case MULTIPLY:
                 fprintf(fs, "layer%d_in * layer%d_tex;\n", i, i);
                 break;
@@ -119,7 +120,7 @@ ShaderGroup *LitTextureShader::create_shader_group(const Material* material)
         "uniform vec4 material_ambient, material_emissive;\n"
         "uniform float material_reflectivity, material_opacity;\n";
 
-    FILE *vsa = fopen("ambient.vert", "w+");
+    FILE *vsa = tmpfile();
     fprintf(vsa, "%s", vs_header);
     fprintf(vsa, "uniform vec4 light_color;\n");
     for(int i = 0; i < 8; i++) {
@@ -135,7 +136,7 @@ ShaderGroup *LitTextureShader::create_shader_group(const Material* material)
                  "\tgl_Position = PVM_matrix * vertex_position;\n");
     for(int i = 0; i < 8; i++) {
         if(shader_channels & (1 << i)) {
-            fprintf(vsa, "\ttexcoord%d = vertex_texcoord%d;\n", i, i);
+            fprintf(vsa, "\ttexcoord%d = vertex_texcoord%d * vec2(1.0, -1.0);\n", i, i);
         }
     }
     fprintf(vsa, "}\n");
@@ -143,7 +144,7 @@ ShaderGroup *LitTextureShader::create_shader_group(const Material* material)
     GLuint ambient_shader = compile_shader(GL_VERTEX_SHADER, vsa);
     fclose(vsa);
 
-    FILE *vsd = fopen("directional.vert", "w+");
+    FILE *vsd = tmpfile();
     fprintf(vsd, "%s", vs_header);
     fprintf(vsd, "uniform vec4 light_color;\n"
                  "uniform vec4 light_direction;\n"
@@ -167,7 +168,7 @@ ShaderGroup *LitTextureShader::create_shader_group(const Material* material)
                  "\tgl_Position = PVM_matrix * vertex_position;\n");
     for(int i = 0; i < 8; i++) {
         if(shader_channels & (1 << i)) {
-            fprintf(vsd, "\ttexcoord%d = vertex_texcoord%d;\n", i, i);
+            fprintf(vsd, "\ttexcoord%d = vertex_texcoord%d * vec2(1.0, -1.0);\n", i, i);
         }
     }
     fprintf(vsd, "}\n");
@@ -175,7 +176,7 @@ ShaderGroup *LitTextureShader::create_shader_group(const Material* material)
     GLuint directional_shader = compile_shader(GL_VERTEX_SHADER, vsd);
     fclose(vsd);
 
-    FILE *vsp = fopen("point.vert", "w+");
+    FILE *vsp = tmpfile();
     fprintf(vsp, "%s", vs_header);
     fprintf(vsp, "uniform vec4 light_color;\n"
                  "uniform vec4 light_position;\n"
@@ -199,17 +200,17 @@ ShaderGroup *LitTextureShader::create_shader_group(const Material* material)
                  "\tfloat attenuation = light_att0 + light_att1 * viewspace_light_distance + light_att2 * viewspace_light_distance * viewspace_light_distance;\n");
     for(int i = 0; i < 8; i++) {
         if(shader_channels & (1 << i)) {
-            fprintf(vsp, "\ttexcoord%d = vertex_texcoord%d;\n", i, i);
+            fprintf(vsp, "\ttexcoord%d = vertex_texcoord%d * vec2(1.0, -1.0);\n", i, i);
         }
     }
-    fprintf(vsp, "\tfragment_color = light_intensity * ((diffuse + specular) / attenuation + ambient) + emissive;\n"
+    fprintf(vsp, "\tfragment_color = light_intensity * ((diffuse + specular) / attenuation) + ambient + emissive;\n"
                  "\tgl_Position = PVM_matrix * vertex_position;\n"
                  "}\n");
     rewind(vsp);
     GLuint point_shader = compile_shader(GL_VERTEX_SHADER, vsp);
     fclose(vsp);
 
-    FILE *vss = fopen("spot.vert", "w+");
+    FILE *vss = tmpfile();
     fprintf(vss, "%s", vs_header);
     fprintf(vss, "uniform vec4 light_color;\n"
                  "uniform vec4 light_position, light_direction;\n"
@@ -235,7 +236,7 @@ ShaderGroup *LitTextureShader::create_shader_group(const Material* material)
                  "\tvec4 emissive = material_emissive;\n");
     for(int i = 0; i < 8; i++) {
         if(shader_channels & (1 << i)) {
-            fprintf(vss, "\ttexcoord%d = vertex_texcoord%d;\n", i, i);
+            fprintf(vss, "\ttexcoord%d = vertex_texcoord%d * vec2(1.0, -1.0);\n", i, i);
         }
     }
     fprintf(vss, "\tfragment_color = light_intensity * (spot_attenuation * (diffuse + specular) / attenuation) + ambient + emissive;\n"
@@ -243,11 +244,11 @@ ShaderGroup *LitTextureShader::create_shader_group(const Material* material)
                  "}\n");
     rewind(vss);
     GLuint spot_shader = compile_shader(GL_VERTEX_SHADER, vss);
-    fclose(vss);*/
+    fclose(vss);
 
     ShaderGroup *group = new ShaderGroup();
 
-    FILE *fs = fopen("common.frag", "r");
+    /*FILE *fs = fopen("common.frag", "r");
     GLuint common_fragment_shader = compile_shader(GL_FRAGMENT_SHADER, fs);
     fclose(fs);
     FILE *vsa = fopen("ambient.vert", "r");
@@ -261,13 +262,19 @@ ShaderGroup *LitTextureShader::create_shader_group(const Material* material)
     fclose(vsp);
     FILE *vss = fopen("spot.vert", "r");
     GLuint spot_shader = compile_shader(GL_VERTEX_SHADER, vss);
-    fclose(vss);
+    fclose(vss);*/
 
     group->ambient_program = link_program(ambient_shader, common_fragment_shader);
     group->directional_program = link_program(directional_shader, common_fragment_shader);
     group->point_program = link_program(point_shader, common_fragment_shader);
     group->spot_program = link_program(spot_shader, common_fragment_shader);
     group->material.configure(material);
+    group->shader_channels = shader_channels & 0xFF;
+    for(int i = 0; i < 8; i++) {
+        if(shader_channels & (1 << i)) {
+            group->texture_names[i] = texinfos[i].name;
+        }
+    }
 
     return group;
 }

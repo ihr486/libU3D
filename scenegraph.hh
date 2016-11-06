@@ -254,6 +254,7 @@ class SceneGraph
             U3D_LOG << "Intensity = " << intensity << std::endl;
             U3D_LOG << "Constant Attenuation = " << att_constant << std::endl;
             U3D_LOG << "Linear Attenuation = " << att_linear << std::endl;
+            U3D_LOG << "Quadratic Attenuation = " << att_quadratic << std::endl;
             glUniform4f(glGetUniformLocation(program, "light_color"), color.r, color.g, color.b, 1.0f);
             switch(type) {
             case LIGHT_DIRECTIONAL:
@@ -262,6 +263,7 @@ class SceneGraph
                 break;
             case LIGHT_POINT:
                 glUniform4f(glGetUniformLocation(program, "light_position"), position.x, position.y, position.z, 1.0f);
+                glUniform1f(glGetUniformLocation(program, "light_intensity"), intensity);
                 glUniform1f(glGetUniformLocation(program, "light_att0"), att_constant);
                 glUniform1f(glGetUniformLocation(program, "light_att1"), att_linear);
                 glUniform1f(glGetUniformLocation(program, "light_att2"), att_quadratic);
@@ -269,6 +271,7 @@ class SceneGraph
             case LIGHT_SPOT:
                 glUniform4f(glGetUniformLocation(program, "light_direction"), direction.x, direction.y, direction.z, 0.0f);
                 glUniform4f(glGetUniformLocation(program, "light_position"), position.x, position.y, position.z, 1.0f);
+                glUniform1f(glGetUniformLocation(program, "light_intensity"), intensity);
                 glUniform1f(glGetUniformLocation(program, "light_att0"), att_constant);
                 glUniform1f(glGetUniformLocation(program, "light_att1"), att_linear);
                 glUniform1f(glGetUniformLocation(program, "light_att2"), att_quadratic);
@@ -312,6 +315,7 @@ public:
     }
     void render(GraphicsContext *context)
     {
+        glBlendFunc(GL_ONE, GL_ONE);
         for(std::vector<LightParams>::iterator i = lights.begin(); i != lights.end(); i++) {
             U3D_LOG << "Light type = " << (int)i->type << std::endl;
             for(std::vector<ModelParams>::iterator j = models.begin(); j != models.end(); j++) {
@@ -326,11 +330,18 @@ public:
                         GLuint program = shader_group->use(i->type);
                         i->load(program);
                         view.load(program, j->model_matrix);
+                        for(int l = 0; l < 8; l++) {
+                            if(shader_group->shader_channels & (1 << l)) {
+                                glActiveTexture(l);
+                                glBindTexture(GL_TEXTURE_2D, context->get_texture(shader_group->texture_names[l]));
+                            }
+                        }
                         render_group->render(k, program);
                     }
                 }
             }
         }
+        U3D_LOG << "SceneGraph rendered." << std::endl;
     }
 };
 

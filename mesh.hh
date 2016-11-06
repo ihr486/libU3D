@@ -38,7 +38,11 @@ class CLOD_Mesh : private CLOD_Object, public ModelResource
     public:
         void add_face(uint32_t index, const Face& face) {
             for(int i = 0; i < 3; i++) {
-                positions[face.corners[i].position].push_back(index);
+                std::vector<uint32_t>& cont = positions[face.corners[i].position];
+                cont.push_back(index);
+                //positions[face.corners[i].position].push_back(index);
+                std::sort(cont.begin(), cont.end(), std::greater<uint32_t>());
+                //greater_unique_sort(positions[face.corners[i].position]);
             }
         }
         void add_position() {
