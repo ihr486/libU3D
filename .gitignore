@@ -7,3 +7,5 @@
 !*.u3d
 !tests
 !COPYING
+!src
+!demo
