@@ -1,13 +1,9 @@
 *
-!*.cpp
-!*.hpp
 !*.cc
 !*.hh
-!*.cs
 !*.md
 !.gitignore
 !Makefile
 !*.u3d
 !tests
-!*.tex
-!doc
+!COPYING
