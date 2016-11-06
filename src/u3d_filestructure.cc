@@ -19,6 +19,8 @@
 
 #include "u3d_internal.hh"
 
+namespace U3D
+{
 namespace
 {
 uint32_t read_modifier_count(BitStreamReader& reader)
@@ -148,8 +150,6 @@ void read_header_block(BitStreamReader& reader) {
 }
 }
 
-namespace U3D
-{
 FileStructure::FileStructure(const std::string& filename) : reader(filename)
 {
     models[""] = new CLOD_Mesh();

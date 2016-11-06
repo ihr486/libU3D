@@ -80,7 +80,7 @@ namespace U3D
 
 ShaderGroup *LitTextureShader::create_shader_group(const Material* material)
 {
-    FILE *fs = tmpfile();
+    FILE *fs = fopen("common.frag", "wb+");
 
     fprintf(fs, "#version 110\n"
                 "varying vec4 fragment_color;\n");
@@ -139,7 +139,7 @@ ShaderGroup *LitTextureShader::create_shader_group(const Material* material)
         "uniform vec4 material_ambient, material_emissive;\n"
         "uniform float material_reflectivity, material_opacity;\n";
 
-    FILE *vsa = tmpfile();
+    FILE *vsa = fopen("ambient.vert", "wb+");
     fprintf(vsa, "%s", vs_header);
     fprintf(vsa, "uniform vec4 light_color;\n");
     for(int i = 0; i < 8; i++) {
@@ -151,19 +151,19 @@ ShaderGroup *LitTextureShader::create_shader_group(const Material* material)
     fprintf(vsa, "void main() {\n"
                  "\tvec4 ambient = light_color * material_ambient;\n"
                  "\tvec4 emissive = material_emissive;\n"
-                 "\tfragment_color = ambient + emissive;\n"
-                 "\tgl_Position = PVM_matrix * vertex_position;\n");
+                 "\tfragment_color = ambient + emissive;\n");
     for(int i = 0; i < 8; i++) {
         if(shader_channels & (1 << i)) {
             fprintf(vsa, "\ttexcoord%d = vertex_texcoord%d * vec2(1.0, -1.0);\n", i, i);
         }
     }
-    fprintf(vsa, "}\n");
+    fprintf(vsa, "\tgl_Position = PVM_matrix * vertex_position;\n"
+                 "}\n");
     rewind(vsa);
     GLuint ambient_shader = compile_shader(GL_VERTEX_SHADER, vsa);
     fclose(vsa);
 
-    FILE *vsd = tmpfile();
+    FILE *vsd = fopen("directional.vert", "wb+");
     fprintf(vsd, "%s", vs_header);
     fprintf(vsd, "uniform vec4 light_color;\n"
                  "uniform vec4 light_direction;\n"
@@ -195,7 +195,7 @@ ShaderGroup *LitTextureShader::create_shader_group(const Material* material)
     GLuint directional_shader = compile_shader(GL_VERTEX_SHADER, vsd);
     fclose(vsd);
 
-    FILE *vsp = tmpfile();
+    FILE *vsp = fopen("point.vert", "wb+");
     fprintf(vsp, "%s", vs_header);
     fprintf(vsp, "uniform vec4 light_color;\n"
                  "uniform vec4 light_position;\n"
@@ -229,7 +229,7 @@ ShaderGroup *LitTextureShader::create_shader_group(const Material* material)
     GLuint point_shader = compile_shader(GL_VERTEX_SHADER, vsp);
     fclose(vsp);
 
-    FILE *vss = tmpfile();
+    FILE *vss = fopen("spot.vert", "wb+");
     fprintf(vss, "%s", vs_header);
     fprintf(vss, "uniform vec4 light_color;\n"
                  "uniform vec4 light_position, light_direction;\n"
