@@ -22,18 +22,11 @@
 namespace
 {
 
-GLuint compile_shader(GLenum type, FILE *fp)
+GLuint compile_shader(GLenum type, const char *src)
 {
     GLuint shader = glCreateShader(type);
 
-    char buf[32768];
-    size_t src_length = fread(buf, 1, sizeof(buf) - 1, fp);
-    if(src_length >= sizeof(buf) - 1) {
-        U3D_WARNING << "Shader source might be truncated." << std::endl;
-    }
-    buf[src_length] = 0;
-    const char *source_list[1] = {buf};
-    glShaderSource(shader, 1, source_list, NULL);
+    glShaderSource(shader, 1, &src, NULL);
     glCompileShader(shader);
 
     GLint result, log_length;
@@ -78,56 +71,76 @@ GLuint link_program(GLuint vertex_shader, GLuint fragment_shader)
 namespace U3D
 {
 
+namespace
+{
+struct FormatBuffer
+{
+    char buf[32768];
+    int position;
+    FormatBuffer() : position(0) {}
+    void print(const char *format, ...)
+    {
+        va_list ap;
+        va_start(ap, format);
+        int n = vsprintf(buf + position, format, ap);
+        if(n >= 0) {
+            position += n;
+        }
+        va_end(ap);
+    }
+};
+}
+
 ShaderGroup *LitTextureShader::create_shader_group(const Material* material)
 {
-    FILE *fs = fopen("common.frag", "wb+");
-
-    fprintf(fs, "#version 110\n"
-                "varying vec4 fragment_color;\n");
-    for(int i = 0; i < 8; i++) {
-        if(shader_channels & (1 << i)) {
-            fprintf(fs, "uniform sampler2D texture%d;\n", i);
-            fprintf(fs, "varying vec2 texcoord%d;\n", i);
-        }
-    }
-    fprintf(fs, "void main() {\n");
-    for(int i = 0; i < 8; i++) {
-        if(i == 0) {
-            fprintf(fs, "\tvec4 layer0_in = fragment_color;\n");
-        } else {
-            fprintf(fs, "\tvec4 layer%d_in = layer%d_out;\n", i, i - 1);
-        }
-        if(shader_channels & (1 << i)) {
-            fprintf(fs, "\tvec4 layer%d_tex = texture2D(texture%d, texcoord%d);\n", i, i, i);
-        }
-        if(i == 7) {
-            fprintf(fs, "\tgl_FragColor = ");
-        } else {
-            fprintf(fs, "\tvec4 layer%d_out = ", i);
-        }
-        if(shader_channels & (1 << i)) {
-            switch(texinfos[i].blend_function) {
-            case MULTIPLY:
-                fprintf(fs, "layer%d_in * layer%d_tex;\n", i, i);
-                break;
-            case ADD:
-                fprintf(fs, "vec4(layer%d_in.rgb + layer%d_tex.rgb, layer%d_in.a * layer%d_tex.a);\n", i, i, i, i);
-                break;
-            case REPLACE:
-                fprintf(fs, "layer%d_tex;\n", i);
-                break;
-            case BLEND:
-                fprintf(fs, "vec4(mix(layer%d_in.rgb, layer%d_tex.rgb, layer%d_tex.a), layer%d_in.a * layer%d_tex.a);\n", i, i, i, i, i);
-                break;
+    GLuint fragment_shader;
+    {
+        FormatBuffer fs;
+        fs.print("#version 110\n"
+                 "varying vec4 fragment_color;\n");
+        for(int i = 0; i < 8; i++) {
+            if(shader_channels & (1 << i)) {
+                fs.print("uniform sampler2D texture%d;\n", i);
+                fs.print("varying vec2 texcoord%d;\n", i);
             }
-        } else {
-            fprintf(fs, "layer%d_in;\n", i);
         }
+        fs.print("void main() {\n");
+        for(int i = 0; i < 8; i++) {
+            if(i == 0) {
+                fs.print("\tvec4 layer0_in = fragment_color;\n");
+            } else {
+                fs.print("\tvec4 layer%d_in = layer%d_out;\n", i, i - 1);
+            }
+            if(shader_channels & (1 << i)) {
+                fs.print("\tvec4 layer%d_tex = texture2D(texture%d, texcoord%d);\n", i, i, i);
+            }
+            if(i == 7) {
+                fs.print("\tgl_FragColor = ");
+            } else {
+                fs.print("\tvec4 layer%d_out = ", i);
+            }
+            if(shader_channels & (1 << i)) {
+                switch(texinfos[i].blend_function) {
+                case MULTIPLY:
+                    fs.print("layer%d_in * layer%d_tex;\n", i, i);
+                    break;
+                case ADD:
+                    fs.print("vec4(layer%d_in.rgb + layer%d_tex.rgb, layer%d_in.a * layer%d_tex.a);\n", i, i, i, i);
+                    break;
+                case REPLACE:
+                    fs.print("layer%d_tex;\n", i);
+                    break;
+                case BLEND:
+                    fs.print("vec4(mix(layer%d_in.rgb, layer%d_tex.rgb, layer%d_tex.a), layer%d_in.a * layer%d_tex.a);\n", i, i, i, i, i);
+                    break;
+                }
+            } else {
+                fs.print("layer%d_in;\n", i);
+            }
+        }
+        fs.print("}\n");
+        fragment_shader = compile_shader(GL_FRAGMENT_SHADER, fs.buf);
     }
-    fprintf(fs, "}\n");
-    rewind(fs);
-    GLuint common_fragment_shader = compile_shader(GL_FRAGMENT_SHADER, fs);
-    fclose(fs);
 
     const char vs_header[] =
         "#version 110\n"
@@ -139,151 +152,155 @@ ShaderGroup *LitTextureShader::create_shader_group(const Material* material)
         "uniform vec4 material_ambient, material_emissive;\n"
         "uniform float material_reflectivity, material_opacity;\n";
 
-    FILE *vsa = fopen("ambient.vert", "wb+");
-    fprintf(vsa, "%s", vs_header);
-    fprintf(vsa, "uniform vec4 light_color;\n");
-    for(int i = 0; i < 8; i++) {
-        if(shader_channels & (1 << i)) {
-            fprintf(vsa, "attribute vec2 vertex_texcoord%d;\n", i);
-            fprintf(vsa, "varying vec2 texcoord%d;\n", i);
+    GLuint ambient_shader;
+    {
+        FormatBuffer vsa;
+        vsa.print("%s", vs_header);
+        vsa.print("uniform vec4 light_color;\n");
+        for(int i = 0; i < 8; i++) {
+            if(shader_channels & (1 << i)) {
+                vsa.print("attribute vec2 vertex_texcoord%d;\n", i);
+                vsa.print("varying vec2 texcoord%d;\n", i);
+            }
         }
-    }
-    fprintf(vsa, "void main() {\n"
-                 "\tvec4 ambient = light_color * material_ambient;\n"
-                 "\tvec4 emissive = material_emissive;\n"
-                 "\tfragment_color = ambient + emissive;\n");
-    for(int i = 0; i < 8; i++) {
-        if(shader_channels & (1 << i)) {
-            fprintf(vsa, "\ttexcoord%d = vertex_texcoord%d * vec2(1.0, -1.0);\n", i, i);
+        vsa.print("void main() {\n"
+                     "\tvec4 ambient = light_color * material_ambient;\n"
+                     "\tvec4 emissive = material_emissive;\n"
+                     "\tfragment_color = ambient + emissive;\n");
+        for(int i = 0; i < 8; i++) {
+            if(shader_channels & (1 << i)) {
+                vsa.print("\ttexcoord%d = vertex_texcoord%d * vec2(1.0, -1.0);\n", i, i);
+            }
         }
+        vsa.print("\tgl_Position = PVM_matrix * vertex_position;\n"
+                     "}\n");
+        ambient_shader = compile_shader(GL_VERTEX_SHADER, vsa.buf);
     }
-    fprintf(vsa, "\tgl_Position = PVM_matrix * vertex_position;\n"
-                 "}\n");
-    rewind(vsa);
-    GLuint ambient_shader = compile_shader(GL_VERTEX_SHADER, vsa);
-    fclose(vsa);
 
-    FILE *vsd = fopen("directional.vert", "wb+");
-    fprintf(vsd, "%s", vs_header);
-    fprintf(vsd, "uniform vec4 light_color;\n"
-                 "uniform vec4 light_direction;\n"
-                 "uniform float light_intensity;\n");
-    for(int i = 0; i < 8; i++) {
-        if(shader_channels & (1 << i)) {
-            fprintf(vsd, "attribute vec2 vertex_texcoord%d;\n", i);
-            fprintf(vsd, "varying vec2 texcoord%d;\n", i);
+    GLuint directional_shader;
+    {
+        FormatBuffer vsd;
+        vsd.print("%s", vs_header);
+        vsd.print("uniform vec4 light_color;\n"
+                  "uniform vec4 light_direction;\n"
+                  "uniform float light_intensity;\n");
+        for(int i = 0; i < 8; i++) {
+            if(shader_channels & (1 << i)) {
+                vsd.print("attribute vec2 vertex_texcoord%d;\n", i);
+                vsd.print("varying vec2 texcoord%d;\n", i);
+            }
         }
-    }
-    fprintf(vsd, "void main() {\n"
-                 "\tvec4 viewspace_normal = normalize(normal_matrix * vertex_normal);\n"
-                 "\tvec4 viewspace_position = modelview_matrix * vertex_position;\n"
-                 "\tvec4 viewspace_incidence = light_direction;\n"
-                 "\tvec4 viewspace_camera = normalize(-viewspace_position);\n");
-    if(attributes & USE_VERTEX_COLOR) {
-        fprintf(vsd, "\tvec4 diffuse = light_color * vertex_diffuse * max(0.0, dot(viewspace_normal, -viewspace_incidence));\n"
-                     "\tvec4 specular = light_color * vertex_specular * pow(max(0.0, dot(viewspace_camera, reflect(viewspace_incidence, viewspace_normal))), material_reflectivity);\n");
-    } else {
-        fprintf(vsd, "\tvec4 diffuse = light_color * material_diffuse * max(0.0, dot(viewspace_normal, -viewspace_incidence));\n"
-                     "\tvec4 specular = light_color * material_specular * pow(max(0.0, dot(viewspace_camera, reflect(viewspace_incidence, viewspace_normal))), material_reflectivity);\n");
-    }
-    fprintf(vsd, "\tvec4 ambient = light_color * material_ambient;\n"
-                 "\tvec4 emissive = material_emissive;\n"
-                 "\tfragment_color = light_intensity * (diffuse + specular + ambient) + emissive;\n"
-                 "\tgl_Position = PVM_matrix * vertex_position;\n");
-    for(int i = 0; i < 8; i++) {
-        if(shader_channels & (1 << i)) {
-            fprintf(vsd, "\ttexcoord%d = vertex_texcoord%d * vec2(1.0, -1.0);\n", i, i);
+        vsd.print("void main() {\n"
+                  "\tvec4 viewspace_normal = normalize(normal_matrix * vertex_normal);\n"
+                  "\tvec4 viewspace_position = modelview_matrix * vertex_position;\n"
+                  "\tvec4 viewspace_incidence = light_direction;\n"
+                  "\tvec4 viewspace_camera = normalize(-viewspace_position);\n");
+        if(attributes & USE_VERTEX_COLOR) {
+            vsd.print("\tvec4 diffuse = light_color * vertex_diffuse * max(0.0, dot(viewspace_normal, -viewspace_incidence));\n"
+                      "\tvec4 specular = light_color * vertex_specular * pow(max(0.0, dot(viewspace_camera, reflect(viewspace_incidence, viewspace_normal))), material_reflectivity);\n");
+        } else {
+            vsd.print("\tvec4 diffuse = light_color * material_diffuse * max(0.0, dot(viewspace_normal, -viewspace_incidence));\n"
+                      "\tvec4 specular = light_color * material_specular * pow(max(0.0, dot(viewspace_camera, reflect(viewspace_incidence, viewspace_normal))), material_reflectivity);\n");
         }
+        vsd.print("\tvec4 ambient = light_color * material_ambient;\n"
+                  "\tvec4 emissive = material_emissive;\n"
+                  "\tfragment_color = light_intensity * (diffuse + specular + ambient) + emissive;\n"
+                  "\tgl_Position = PVM_matrix * vertex_position;\n");
+        for(int i = 0; i < 8; i++) {
+            if(shader_channels & (1 << i)) {
+                vsd.print("\ttexcoord%d = vertex_texcoord%d * vec2(1.0, -1.0);\n", i, i);
+            }
+        }
+        vsd.print("}\n");
+        directional_shader = compile_shader(GL_VERTEX_SHADER, vsd.buf);
     }
-    fprintf(vsd, "}\n");
-    rewind(vsd);
-    GLuint directional_shader = compile_shader(GL_VERTEX_SHADER, vsd);
-    fclose(vsd);
 
-    FILE *vsp = fopen("point.vert", "wb+");
-    fprintf(vsp, "%s", vs_header);
-    fprintf(vsp, "uniform vec4 light_color;\n"
-                 "uniform vec4 light_position;\n"
-                 "uniform float light_att0, light_att1, light_att2, light_intensity;\n");
-    for(int i = 0; i < 8; i++) {
-        if(shader_channels & (1 << i)) {
-            fprintf(vsp, "attribute vec2 vertex_texcoord%d;\n", i);
-            fprintf(vsp, "varying vec2 texcoord%d;\n", i);
+    GLuint point_shader;
+    {
+        FormatBuffer vsp;
+        vsp.print("%s", vs_header);
+        vsp.print("uniform vec4 light_color;\n"
+                  "uniform vec4 light_position;\n"
+                  "uniform float light_att0, light_att1, light_att2, light_intensity;\n");
+        for(int i = 0; i < 8; i++) {
+            if(shader_channels & (1 << i)) {
+                vsp.print("attribute vec2 vertex_texcoord%d;\n", i);
+                vsp.print("varying vec2 texcoord%d;\n", i);
+            }
         }
-    }
-    fprintf(vsp, "void main() {\n"
-                 "\tvec4 viewspace_normal = normalize(normal_matrix * vertex_normal);\n"
-                 "\tvec4 viewspace_position = modelview_matrix * vertex_position;\n"
-                 "\tvec4 viewspace_incidence = normalize(viewspace_position - light_position);\n"
-                 "\tvec4 viewspace_camera = normalize(-viewspace_position);\n");
-    if(attributes & USE_VERTEX_COLOR) {
-        fprintf(vsp, "\tvec4 diffuse = light_color * vertex_diffuse * max(0.0, dot(viewspace_normal, -viewspace_incidence));\n"
-                     "\tvec4 specular = light_color * vertex_specular * pow(max(0.0, dot(viewspace_camera, reflect(viewspace_incidence, viewspace_normal))), material_reflectivity);\n");
-    } else {
-        fprintf(vsp, "\tvec4 diffuse = light_color * material_diffuse * max(0.0, dot(viewspace_normal, -viewspace_incidence));\n"
-                     "\tvec4 specular = light_color * material_specular * pow(max(0.0, dot(viewspace_camera, reflect(viewspace_incidence, viewspace_normal))), material_reflectivity);\n");
-    }
-    fprintf(vsp, "\tvec4 ambient = light_color * material_ambient;\n"
-                 "\tvec4 emissive = material_emissive;\n"
-                 "\tfloat viewspace_light_distance = length(viewspace_position - light_position);\n"
-                 "\tfloat attenuation = light_att0 + light_att1 * viewspace_light_distance + light_att2 * viewspace_light_distance * viewspace_light_distance;\n");
-    for(int i = 0; i < 8; i++) {
-        if(shader_channels & (1 << i)) {
-            fprintf(vsp, "\ttexcoord%d = vertex_texcoord%d * vec2(1.0, -1.0);\n", i, i);
+        vsp.print("void main() {\n"
+                  "\tvec4 viewspace_normal = normalize(normal_matrix * vertex_normal);\n"
+                  "\tvec4 viewspace_position = modelview_matrix * vertex_position;\n"
+                  "\tvec4 viewspace_incidence = normalize(viewspace_position - light_position);\n"
+                  "\tvec4 viewspace_camera = normalize(-viewspace_position);\n");
+        if(attributes & USE_VERTEX_COLOR) {
+            vsp.print("\tvec4 diffuse = light_color * vertex_diffuse * max(0.0, dot(viewspace_normal, -viewspace_incidence));\n"
+                      "\tvec4 specular = light_color * vertex_specular * pow(max(0.0, dot(viewspace_camera, reflect(viewspace_incidence, viewspace_normal))), material_reflectivity);\n");
+        } else {
+            vsp.print("\tvec4 diffuse = light_color * material_diffuse * max(0.0, dot(viewspace_normal, -viewspace_incidence));\n"
+                      "\tvec4 specular = light_color * material_specular * pow(max(0.0, dot(viewspace_camera, reflect(viewspace_incidence, viewspace_normal))), material_reflectivity);\n");
         }
+        vsp.print("\tvec4 ambient = light_color * material_ambient;\n"
+                  "\tvec4 emissive = material_emissive;\n"
+                  "\tfloat viewspace_light_distance = length(viewspace_position - light_position);\n"
+                  "\tfloat attenuation = light_att0 + light_att1 * viewspace_light_distance + light_att2 * viewspace_light_distance * viewspace_light_distance;\n");
+        for(int i = 0; i < 8; i++) {
+            if(shader_channels & (1 << i)) {
+                vsp.print("\ttexcoord%d = vertex_texcoord%d * vec2(1.0, -1.0);\n", i, i);
+            }
+        }
+        vsp.print("\tfragment_color = light_intensity * ((diffuse + specular) / attenuation) + ambient + emissive;\n"
+                  "\tgl_Position = PVM_matrix * vertex_position;\n"
+                  "}\n");
+        point_shader = compile_shader(GL_VERTEX_SHADER, vsp.buf);
     }
-    fprintf(vsp, "\tfragment_color = light_intensity * ((diffuse + specular) / attenuation) + ambient + emissive;\n"
-                 "\tgl_Position = PVM_matrix * vertex_position;\n"
-                 "}\n");
-    rewind(vsp);
-    GLuint point_shader = compile_shader(GL_VERTEX_SHADER, vsp);
-    fclose(vsp);
 
-    FILE *vss = fopen("spot.vert", "wb+");
-    fprintf(vss, "%s", vs_header);
-    fprintf(vss, "uniform vec4 light_color;\n"
-                 "uniform vec4 light_position, light_direction;\n"
-                 "uniform float light_spot_angle, light_exponent;\n"
-                 "uniform float light_intensity, light_att0, light_att1, light_att2;\n");
-    for(int i = 0; i < 8; i++) {
-        if(shader_channels & (1 << i)) {
-            fprintf(vss, "attribute vec2 vertex_texcoord%d;\n", i);
-            fprintf(vss, "varying vec2 texcoord%d;\n", i);
+    GLuint spot_shader;
+    {
+        FormatBuffer vss;
+        vss.print("%s", vs_header);
+        vss.print("uniform vec4 light_color;\n"
+                  "uniform vec4 light_position, light_direction;\n"
+                  "uniform float light_spot_angle, light_exponent;\n"
+                  "uniform float light_intensity, light_att0, light_att1, light_att2;\n");
+        for(int i = 0; i < 8; i++) {
+            if(shader_channels & (1 << i)) {
+                vss.print("attribute vec2 vertex_texcoord%d;\n", i);
+                vss.print("varying vec2 texcoord%d;\n", i);
+            }
         }
-    }
-    fprintf(vss, "void main() {\n"
-                 "\tvec4 viewspace_normal = normalize(normal_matrix * vertex_normal);\n"
-                 "\tvec4 viewspace_position = modelview_matrix * vertex_position;\n"
-                 "\tvec4 viewspace_incidence = normalize(viewspace_position - light_position);\n"
-                 "\tvec4 viewspace_camera = normalize(-viewspace_position);\n"
-                 "\tfloat viewspace_light_distance = length(viewspace_position - light_position);\n"
-                 "\tfloat attenuation = light_att0 + light_att1 * viewspace_light_distance + light_att2 * viewspace_light_distance * viewspace_light_distance;\n"
-                 "\tfloat spot_attenuation = pow(dot(light_direction, viewspace_incidence), light_exponent);\n");
-    if(attributes & USE_VERTEX_COLOR) {
-        fprintf(vss, "\tvec4 diffuse = light_color * vertex_diffuse * max(0.0, dot(viewspace_normal, -viewspace_incidence));\n"
-                     "\tvec4 specular = light_color * vertex_specular * pow(max(0.0, dot(viewspace_camera, reflect(viewspace_incidence, viewspace_normal))), material_reflectivity);\n");
-    } else {
-        fprintf(vss, "\tvec4 diffuse = light_color * material_diffuse * max(0.0, dot(viewspace_normal, -viewspace_incidence));\n"
-                     "\tvec4 specular = light_color * material_specular * pow(max(0.0, dot(viewspace_camera, reflect(viewspace_incidence, viewspace_normal))), material_reflectivity);\n");
-    }
-    fprintf(vss, "\tvec4 ambient = light_color * material_ambient;\n"
-                 "\tvec4 emissive = material_emissive;\n");
-    for(int i = 0; i < 8; i++) {
-        if(shader_channels & (1 << i)) {
-            fprintf(vss, "\ttexcoord%d = vertex_texcoord%d * vec2(1.0, -1.0);\n", i, i);
+        vss.print("void main() {\n"
+                  "\tvec4 viewspace_normal = normalize(normal_matrix * vertex_normal);\n"
+                  "\tvec4 viewspace_position = modelview_matrix * vertex_position;\n"
+                  "\tvec4 viewspace_incidence = normalize(viewspace_position - light_position);\n"
+                  "\tvec4 viewspace_camera = normalize(-viewspace_position);\n"
+                  "\tfloat viewspace_light_distance = length(viewspace_position - light_position);\n"
+                  "\tfloat attenuation = light_att0 + light_att1 * viewspace_light_distance + light_att2 * viewspace_light_distance * viewspace_light_distance;\n"
+                  "\tfloat spot_attenuation = pow(dot(light_direction, viewspace_incidence), light_exponent);\n");
+        if(attributes & USE_VERTEX_COLOR) {
+            vss.print("\tvec4 diffuse = light_color * vertex_diffuse * max(0.0, dot(viewspace_normal, -viewspace_incidence));\n"
+                      "\tvec4 specular = light_color * vertex_specular * pow(max(0.0, dot(viewspace_camera, reflect(viewspace_incidence, viewspace_normal))), material_reflectivity);\n");
+        } else {
+            vss.print("\tvec4 diffuse = light_color * material_diffuse * max(0.0, dot(viewspace_normal, -viewspace_incidence));\n"
+                      "\tvec4 specular = light_color * material_specular * pow(max(0.0, dot(viewspace_camera, reflect(viewspace_incidence, viewspace_normal))), material_reflectivity);\n");
         }
+        vss.print("\tvec4 ambient = light_color * material_ambient;\n"
+                  "\tvec4 emissive = material_emissive;\n");
+        for(int i = 0; i < 8; i++) {
+            if(shader_channels & (1 << i)) {
+                vss.print("\ttexcoord%d = vertex_texcoord%d * vec2(1.0, -1.0);\n", i, i);
+            }
+        }
+        vss.print("\tfragment_color = light_intensity * (spot_attenuation * (diffuse + specular) / attenuation) + ambient + emissive;\n"
+                  "\tgl_Position = PVM_matrix * vertex_position;\n"
+                  "}\n");
+        spot_shader = compile_shader(GL_VERTEX_SHADER, vss.buf);
     }
-    fprintf(vss, "\tfragment_color = light_intensity * (spot_attenuation * (diffuse + specular) / attenuation) + ambient + emissive;\n"
-                 "\tgl_Position = PVM_matrix * vertex_position;\n"
-                 "}\n");
-    rewind(vss);
-    GLuint spot_shader = compile_shader(GL_VERTEX_SHADER, vss);
-    fclose(vss);
 
     ShaderGroup *group = new ShaderGroup();
 
     /*FILE *fs = fopen("common.frag", "r");
-    GLuint common_fragment_shader = compile_shader(GL_FRAGMENT_SHADER, fs);
+    GLuint fragment_shader = compile_shader(GL_FRAGMENT_SHADER, fs);
     fclose(fs);
     FILE *vsa = fopen("ambient.vert", "r");
     GLuint ambient_shader = compile_shader(GL_VERTEX_SHADER, vsa);
@@ -298,10 +315,10 @@ ShaderGroup *LitTextureShader::create_shader_group(const Material* material)
     GLuint spot_shader = compile_shader(GL_VERTEX_SHADER, vss);
     fclose(vss);*/
 
-    group->ambient_program = link_program(ambient_shader, common_fragment_shader);
-    group->directional_program = link_program(directional_shader, common_fragment_shader);
-    group->point_program = link_program(point_shader, common_fragment_shader);
-    group->spot_program = link_program(spot_shader, common_fragment_shader);
+    group->ambient_program = link_program(ambient_shader, fragment_shader);
+    group->directional_program = link_program(directional_shader, fragment_shader);
+    group->point_program = link_program(point_shader, fragment_shader);
+    group->spot_program = link_program(spot_shader, fragment_shader);
     group->material.configure(material);
     group->shader_channels = shader_channels & 0xFF;
     for(int i = 0; i < 8; i++) {
