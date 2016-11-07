@@ -162,10 +162,8 @@ int main(int argc, char *argv[])
                             vr_matrix.m[3][0] = 0;
                             vr_matrix.m[3][1] = 0;
                             vr_matrix.m[3][2] = 0;
-                            U3D::Matrix4f vu_matrix = U3D::Matrix4f::create_X_rotation(rotx) * U3D::Matrix4f::create_Y_rotation(roty);
+                            U3D::Matrix4f vu_matrix = U3D::Matrix4f::create_Z_rotation(rotx) * U3D::Matrix4f::create_X_rotation(roty);
                             vu_matrix.translate(vr_offset);
-                            
-                            //U3D::Matrix4f view_matrix = original_view_matrix * U3D::Matrix4f::create_Y_rotation(roty);// * U3D::Matrix4f::create_X_rotation(rotx);
 
                             scenegraph->set_view_matrix(vu_matrix * vr_matrix);
                         }

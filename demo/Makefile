@@ -1,4 +1,5 @@
 CXXSRCS := viewer.cc
+OBJS := $(CXXSRCS:%.cc=$(OBJDIR)/%.o)
 
 BIN := ../viewer
 
@@ -12,5 +13,8 @@ clean:
 install: $(BIN)
 	install --mode=755 --target-directory=/usr/local/bin $<
 
-$(BIN): $(CXXSRCS) ../libu3d.a
-	$(CXX) -I../src $(CXXFLAGS) -o $@ $^ -L.. -lu3d $(LDFLAGS)
+$(BIN): $(OBJS) ../libu3d.a
+	$(CXX) $(CXXFLAGS) -o $@ $^ -L.. -lu3d $(LDFLAGS)
+
+$(OBJDIR)/%.o: %.cc
+	$(CXX) -I../src $(CXXFLAGS) -c -o $@ $<
