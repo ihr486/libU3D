@@ -206,6 +206,8 @@ class SceneGraph
             PERSPECTIVE = 0, ORTHOGONAL
         } type;
         float fovy, height, near, far;
+        float fog_start, fog_end;
+        Color3f fog_color;
         void load(GLuint program, const Matrix4f& model_matrix)
         {
             float viewport[4];
@@ -230,14 +232,12 @@ class SceneGraph
             glUniformMatrix4fv(glGetUniformLocation(program, "modelview_matrix"), 1, GL_FALSE, (GLfloat *)&modelview_matrix);
             glUniformMatrix4fv(glGetUniformLocation(program, "normal_matrix"), 1, GL_FALSE, (GLfloat *)&normal_matrix);
         }
-        ViewParams(const View& view, const ViewResource& view_rsc, const Matrix4f& transform)
+        ViewParams(const View& view, const ViewResource::Pass& view_pass, const Matrix4f& transform)
         {
             view_matrix = transform;
             fovy = view.projection / 180.0f * 3.1415927f;
             height = view.ortho_height;
             near = view.near_clipping;
-            //far = view.far_clipping;
-            //far = 1000.0f;
             far = view.far_clipping > 1E+6f ? 1E+6f : view.far_clipping;
             if(view.attributes & View::PROJECTION_ORTHO) {
                 type = ORTHOGONAL;
@@ -245,6 +245,11 @@ class SceneGraph
                 throw U3D_ERROR << "One- and two- point projections are not supported.";
             } else {
                 type = PERSPECTIVE;
+            }
+            if(view_pass.render_attributes & ViewResource::FOG_ENABLED) {
+                fog_start = view_pass.fog_near;
+                fog_end = view_pass.fog_far;
+                fog_color = view_pass.fog_color;
             }
         }
     };
@@ -326,8 +331,8 @@ class SceneGraph
     std::vector<LightParams> lights;
     std::vector<ModelParams> models;
 public:
-    SceneGraph(const View& view_node, const ViewResource& view_rsc, const Matrix4f& transform)
-    : view(view_node, view_rsc, transform) {
+    SceneGraph(const View& view_node, const ViewResource::Pass& view_pass, const Matrix4f& transform)
+    : view(view_node, view_pass, transform) {
     }
     void register_light(const LightResource& light, const Matrix4f& transform)
     {
@@ -339,12 +344,11 @@ public:
     }
     void render(GraphicsContext *context)
     {
-        glBlendFunc(GL_ONE, GL_ONE);
-        for(std::vector<LightParams>::iterator i = lights.begin(); i != lights.end(); i++) {
-            //U3D_LOG << "Light type = " << (int)i->type << std::endl;
-            for(std::vector<ModelParams>::iterator j = models.begin(); j != models.end(); j++) {
-                //U3D_LOG << "Rendering model \"" << j->name << "\"" <<  std::endl;
-                RenderGroup *render_group = context->get_render_group(j->name);
+        for(std::vector<ModelParams>::iterator j = models.begin(); j != models.end(); j++) {
+            RenderGroup *render_group = context->get_render_group(j->name);
+            //U3D_LOG << "Rendering model \"" << j->name << "\"" <<  std::endl;
+            for(std::vector<LightParams>::iterator i = lights.begin(); i != lights.end(); i++) {
+                //U3D_LOG << "Light type = " << (int)i->type << std::endl;
                 for(unsigned int k = 0; k < render_group->elements.size(); k++) {
                     ShaderGroup *shader_group;
                     if(k < j->shader_names.size()) {
@@ -367,7 +371,6 @@ public:
                 }
             }
         }
-        //U3D_LOG << "SceneGraph rendered." << std::endl;
     }
     Matrix4f& get_view_matrix()
     {

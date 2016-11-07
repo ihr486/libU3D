@@ -309,7 +309,7 @@ SceneGraph *FileStructure::create_scenegraph(const View *view, int pass_index) {
         U3D_WARNING << "View node does not belong to the World." << std::endl;
         return NULL;
     }
-    SceneGraph *scene = new SceneGraph(*view, *rsc, view_transform);
+    SceneGraph *scene = new SceneGraph(*view, rsc->passes[pass_index], view_transform);
     U3D_LOG << "View transform = " << view_transform << std::endl;
     for(std::map<std::string, Node *>::iterator i = nodes.begin(); i != nodes.end(); i++) {
         Matrix4f world_transform;

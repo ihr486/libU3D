@@ -72,7 +72,7 @@ public:
             for(std::vector<Node::Parent>::const_iterator i = node->parents.begin(); i != node->parents.end(); i++) {
                 Node *parent = nodes[i->name];
                 if(get_world_transform(mat, parent, root)) {
-                    *mat *= i->transform;
+                    *mat = (*mat) * i->transform;
                     return true;
                 }
             }

@@ -150,7 +150,7 @@ ShaderGroup *LitTextureShader::create_shader_group(const Material* material)
         "uniform mat4 PVM_matrix, modelview_matrix, normal_matrix;\n"
         "uniform vec4 material_diffuse, material_specular;\n"
         "uniform vec4 material_ambient, material_emissive;\n"
-        "uniform float material_reflectivity, material_opacity;\n";
+        "uniform float material_reflectivity;\n";
 
     GLuint ambient_shader;
     {

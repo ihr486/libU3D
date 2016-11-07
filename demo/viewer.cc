@@ -92,9 +92,9 @@ int main(int argc, char *argv[])
     std::cerr << (char *)lpC << " successfully parsed." << std::endl;
 #endif
 
-    FILE *dump = fopen("tree.log", "w");
+    /*FILE *dump = fopen("tree.log", "w");
     model.dump_tree(dump);
-    fclose(dump);
+    fclose(dump);*/
 
     try {
         U3D::View *defaultview = model.get_view("DefaultView");
@@ -109,9 +109,6 @@ int main(int argc, char *argv[])
         U3D::Matrix4f view_matrix;
         if(model.get_world_transform(&view_matrix, defaultview, model.get_node(""))) {
             U3D_LOG << "View matrix = " << std::endl << view_matrix << std::endl;
-        }
-        if(!view_matrix.is_view()) {
-            U3D_WARNING << "View matrix does not seem to be legal." << std::endl;
         }
         U3D::Matrix4f inverse_view = view_matrix.inverse();
         U3D_LOG << "Inverse view matrix = " << std::endl << inverse_view << std::endl;

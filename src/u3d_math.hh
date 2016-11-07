@@ -163,46 +163,6 @@ struct Matrix4f
         ret.m[3][3] = m[0][3] * mat.m[3][0] + m[1][3] * mat.m[3][1] + m[2][3] * mat.m[3][2] + m[3][3] * mat.m[3][3];
         return ret;
     }
-    Matrix4f& operator*=(const Matrix4f& mat) {
-        float t[4][4];
-        t[0][0] = m[0][0] * mat.m[0][0] + m[1][0] * mat.m[0][1] + m[2][0] * mat.m[0][2] + m[3][0] * mat.m[0][3];
-        t[1][0] = m[0][0] * mat.m[1][0] + m[1][0] * mat.m[1][1] + m[2][0] * mat.m[1][2] + m[3][0] * mat.m[1][3];
-        t[2][0] = m[0][0] * mat.m[2][0] + m[1][0] * mat.m[2][1] + m[2][0] * mat.m[2][2] + m[3][0] * mat.m[2][3];
-        t[3][0] = m[0][0] * mat.m[3][0] + m[1][0] * mat.m[3][1] + m[2][0] * mat.m[3][2] + m[3][0] * mat.m[3][3];
-
-        t[0][1] = m[0][1] * mat.m[0][0] + m[1][1] * mat.m[0][1] + m[2][1] * mat.m[0][2] + m[3][1] * mat.m[0][3];
-        t[1][1] = m[0][1] * mat.m[1][0] + m[1][1] * mat.m[1][1] + m[2][1] * mat.m[1][2] + m[3][1] * mat.m[1][3];
-        t[2][1] = m[0][1] * mat.m[2][0] + m[1][1] * mat.m[2][1] + m[2][1] * mat.m[2][2] + m[3][1] * mat.m[2][3];
-        t[3][1] = m[0][1] * mat.m[3][0] + m[1][1] * mat.m[3][1] + m[2][1] * mat.m[3][2] + m[3][1] * mat.m[3][3];
-
-        t[0][2] = m[0][2] * mat.m[0][0] + m[1][2] * mat.m[0][1] + m[2][2] * mat.m[0][2] + m[3][2] * mat.m[0][3];
-        t[1][2] = m[0][2] * mat.m[1][0] + m[1][2] * mat.m[1][1] + m[2][2] * mat.m[1][2] + m[3][2] * mat.m[1][3];
-        t[2][2] = m[0][2] * mat.m[2][0] + m[1][2] * mat.m[2][1] + m[2][2] * mat.m[2][2] + m[3][2] * mat.m[2][3];
-        t[3][2] = m[0][2] * mat.m[3][0] + m[1][2] * mat.m[3][1] + m[2][2] * mat.m[3][2] + m[3][2] * mat.m[3][3];
-
-        t[0][3] = m[0][3] * mat.m[0][0] + m[1][3] * mat.m[0][1] + m[2][3] * mat.m[0][2] + m[3][3] * mat.m[0][3];
-        t[1][3] = m[0][3] * mat.m[1][0] + m[1][3] * mat.m[1][1] + m[2][3] * mat.m[1][2] + m[3][3] * mat.m[1][3];
-        t[2][3] = m[0][3] * mat.m[2][0] + m[1][3] * mat.m[2][1] + m[2][3] * mat.m[2][2] + m[3][3] * mat.m[2][3];
-        t[3][3] = m[0][3] * mat.m[3][0] + m[1][3] * mat.m[3][1] + m[2][3] * mat.m[3][2] + m[3][3] * mat.m[3][3];
-        memcpy(m, t, sizeof(m));
-        return *this;
-    }
-    Matrix4f inverse_as_view() const {
-        Matrix4f ret;
-        ret.m[0][0] = m[0][0];
-        ret.m[1][0] = m[0][1];
-        ret.m[2][0] = m[0][2];
-        ret.m[3][0] = -m[0][0] * m[3][0] - m[0][1] * m[3][1] - m[0][2] * m[3][2];
-        ret.m[0][1] = m[1][0];
-        ret.m[1][1] = m[1][1];
-        ret.m[2][1] = m[1][2];
-        ret.m[3][1] = -m[1][0] * m[3][0] - m[1][1] * m[3][1] - m[1][2] * m[3][2];
-        ret.m[0][2] = m[2][0];
-        ret.m[1][2] = m[2][1];
-        ret.m[2][2] = m[2][2];
-        ret.m[3][2] = -m[2][0] * m[3][0] - m[2][1] * m[3][1] - m[2][2] * m[3][2];
-        return ret;
-    }
     Matrix4f create_normal_matrix() const {
         Matrix4f ret;
         float invdet = 1.0f / (m[0][0] * m[1][1] * m[2][2] + m[0][1] * m[1][2] * m[2][0] + m[0][2] * m[1][0] * m[2][1] \
@@ -259,17 +219,6 @@ struct Matrix4f
         ret.y = m[0][1] * v.x + m[1][1] * v.y + m[2][1] * v.z + m[3][1];
         ret.z = m[0][2] * v.x + m[1][2] * v.y + m[2][2] * v.z + m[3][2];
         return ret;
-    }
-    bool is_view() const {
-        float epsilon = 1E-6f; //Dimensionless
-        Vector3f xv(m[0][0], m[1][0], m[2][0]);
-        if(xv.size() < 1 - epsilon || 1 + epsilon < xv.size()) return false;
-        Vector3f yv(m[0][1], m[1][1], m[2][1]);
-        if(yv.size() < 1 - epsilon || 1 + epsilon < yv.size()) return false;
-        Vector3f zv(m[0][2], m[1][2], m[2][2]);
-        if(zv.size() < 1 - epsilon || 1 + epsilon < zv.size()) return false;
-        if(fabsf(xv * yv) > epsilon || fabsf(yv * zv) > epsilon || fabsf(zv * xv) > epsilon) return false;
-        return true;
     }
     void identity() {
         for(int i = 0; i < 4; i++) {

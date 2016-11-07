@@ -16,12 +16,12 @@ else
 export CXX := x86_64-w64-mingw32-g++
 PKGCONFIG := x86_64-w64-mingw32-pkg-config
 endif
-export CXXFLAGS := -g -MMD -MP -Wall -Wextra -std=c++03 $(shell $(PKGCONFIG) --cflags sdl2) -I/usr/x86_64-w64-mingw32/sys-root/mingw/include/GL
+export CXXFLAGS := -MMD -MP -Wall -Wextra -std=c++03 -O2 $(shell $(PKGCONFIG) --cflags sdl2) -I/usr/x86_64-w64-mingw32/sys-root/mingw/include/GL
 export LDFLAGS := -Wl,--subsystem,windows -lm $(shell $(PKGCONFIG) --libs sdl2 SDL2_image) -lglew32 -lopengl32
 else
 export CXX := g++
 PKGCONFIG := pkg-config
-export CXXFLAGS := -MMD -MP -Wall -Wextra -std=c++03 -g $(shell pkg-config --cflags sdl2 glew)
+export CXXFLAGS := -MMD -MP -Wall -Wextra -std=c++03 -O2 $(shell pkg-config --cflags sdl2 glew)
 export LDFLAGS := -lm $(shell pkg-config --libs sdl2 SDL2_image glew)
 endif
 
